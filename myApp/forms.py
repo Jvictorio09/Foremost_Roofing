@@ -90,6 +90,22 @@ class CustomerQuickForm(StyledFormMixin, forms.ModelForm):
         widgets = {'address': forms.Textarea(attrs={'rows': 2})}
 
 
+class SalespersonQuickForm(StyledFormMixin, forms.Form):
+    """Create a lightweight salesperson inline from the quotation form.
+
+    It provisions a Sales-role user with an unusable password (an admin sets a
+    real one later in Users & Roles), so the person is immediately selectable on
+    quotations without leaving the page."""
+    placeholders = {
+        'full_name': 'e.g. Maria Santos',
+        'email': 'e.g. maria@foremostroofing.com',
+        'phone': 'e.g. 0917 123 4567',
+    }
+    full_name = forms.CharField(label='Full name', max_length=120)
+    email = forms.EmailField(label='Email', required=False)
+    phone = forms.CharField(label='Phone', max_length=32, required=False)
+
+
 class SupplierForm(StyledFormMixin, forms.ModelForm):
     placeholders = {
         'code': 'Auto-generated if left blank',
@@ -107,6 +123,11 @@ class SupplierForm(StyledFormMixin, forms.ModelForm):
 
 
 class ItemForm(StyledFormMixin, forms.ModelForm):
+    placeholders = {
+        'code': 'e.g. BND-APRON-FLASHING',
+        'name': 'e.g. Apron Flashing',
+    }
+
     class Meta:
         model = Item
         fields = ['code', 'name', 'item_type', 'category', 'uom', 'profile', 'color',
@@ -114,6 +135,15 @@ class ItemForm(StyledFormMixin, forms.ModelForm):
                   'weight_factor_kg_per_lm', 'is_manufactured', 'requires_drawing',
                   'track_lot', 'standard_cost', 'reorder_point', 'reference_image',
                   'is_active']
+        help_texts = {
+            'code': 'Naming convention — bended / drawing items: BND-<ACCESSORY> '
+                    '(e.g. BND-APRON-FLASHING). Roll-formed goods: FG-<PROFILE>-<THK> '
+                    '(e.g. FG-BARCA_RIB-0.4). Keep it uppercase with dashes.',
+            'name': 'Readable name shown on quotations, e.g. "Apron Flashing". '
+                    'The specific girth / bend shape is set per line via the drawing.',
+            'requires_drawing': 'Tick for bended accessories so a reference drawing '
+                                 'and girth are required on each quotation line.',
+        }
 
 
 class StandardDrawingForm(StyledFormMixin, forms.ModelForm):

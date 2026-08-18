@@ -1,5 +1,5 @@
 {% load core_tags %}
-<aside class="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col print:hidden">
+<aside class="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col lg:sticky lg:top-0 lg:h-screen print:hidden">
   <div class="flex h-16 items-center gap-3 border-b border-slate-200 px-6">
     <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-900 text-white font-semibold">FR</div>
     <div class="leading-tight">
@@ -7,7 +7,7 @@
       <div class="text-xs text-slate-500">Operations</div>
     </div>
   </div>
-  <nav class="flex-1 space-y-0.5 px-3 py-4">
+  <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
     {% for link in sidebar_links %}
       <a href="{% url link.url_name %}"
          class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium

@@ -21,10 +21,12 @@ class LoginView(DjangoLoginView):
     redirect_authenticated_user = True
 
 
-def root_redirect(request):
+def landing(request):
+    """Public marketing landing page. Authenticated staff are sent straight to
+    their dashboard so they don't have to click through the brochure site."""
     if request.user.is_authenticated:
         return redirect('dashboard')
-    return redirect('login')
+    return render(request, 'foremost_glory_single_file.html')
 
 
 _PRIORITY_RANK = {'urgent': 0, 'high': 1, 'normal': 2, 'low': 3}
@@ -195,15 +197,71 @@ def dashboard(request):
             ],
         })
 
+    overview, dash_charts = _dashboard_overview(user)
+
     return render(request, 'dashboards/hub.html', {
         'sections': sections,
         'highlights': highlights,
         'status_tone': C.STATUS_TONE,
         'production_queue': production_queue,
+        'overview': overview,
+        'dash_charts': dash_charts,
         'recent_quotes': Quotation.objects.filter(is_current=True)[:6]
         if has_any(user, 'quotation.view') else [],
         'recent_jos': JobOrder.objects.all()[:6] if has_any(user, 'job_order.view') else [],
+        'recent_deliveries': Delivery.objects.select_related('customer')[:6]
+        if has_any(user, 'delivery.view') else [],
     })
+
+
+def _dashboard_overview(user):
+    """Build the visual overview band (headline stats + chart series). Reuses the
+    same live-data helpers as the AI Analyst so the numbers match the reports.
+    Returns (overview_dict, charts_dict) -- both None/empty when the user lacks
+    the sales/reporting permissions that the band summarises."""
+    if not has_any(user, 'report.sales', 'report.management',
+                   'quotation.view', 'invoice.view'):
+        return None, None
+
+    from ..ai import tools  # local import avoids app-load ordering issues
+
+    sales = tools.sales_year_snapshot()
+    prod = None
+    if has_any(user, 'report.production', 'production.view', 'job_order.view'):
+        prod = tools.production_year_snapshot()
+
+    aging = sales['ar_aging']
+    overview = {
+        'year': sales['year'],
+        'stats': [
+            {'label': f"{sales['year']} Invoiced", 'value': sales['ytd_invoiced'],
+             'money': True, 'tone': 'blue', 'spark': 'invoiced',
+             'sub': f"Projected {sales['projected_year_invoiced']:,.0f}"},
+            {'label': f"{sales['year']} Collected", 'value': sales['ytd_collected'],
+             'money': True, 'tone': 'green', 'spark': 'collected',
+             'sub': 'Verified payments received'},
+            {'label': 'Outstanding AR', 'value': sales['ar_outstanding'],
+             'money': True, 'tone': 'rose', 'spark': None,
+             'sub': f"{sales['ar_overdue']:,.0f} overdue"},
+            {'label': 'Win Rate', 'value': sales['win_rate_pct'],
+             'money': False, 'suffix': '%', 'tone': 'indigo', 'spark': None,
+             'sub': f"{len(sales['top_customers'])} active customers"},
+        ],
+        'top_customers': sales['top_customers'][:5],
+        'has_production': prod is not None,
+    }
+    charts = {
+        'labels': sales['months'],
+        'invoiced': sales['invoiced_by_month'],
+        'invoiced_forecast': sales['forecast_by_month'],
+        'collected': sales['collected_by_month'],
+        'ar_aging': [aging['current'], aging['b1_30'], aging['b31_60'], aging['b60p']],
+        'ar_aging_labels': ['Current', '1-30d', '31-60d', '60d+'],
+        'production_labels': prod['months'] if prod else None,
+        'production_lm': prod['lm_by_month'] if prod else None,
+        'production_forecast': prod['forecast_by_month'] if prod else None,
+    }
+    return overview, charts
 
 
 # ---------------------------------------------------------------------------

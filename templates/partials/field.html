@@ -1,7 +1,7 @@
 {% comment %}Reusable labelled field. Params: field, wrap (css classes), hint.{% endcomment %}
 <div class="{{ wrap }}">
   <label class="block text-xs font-medium text-slate-600">
-    {{ field.label }}{% if field.field.required %} <span class="text-rose-500">*</span>{% endif %}
+    {{ field.label }}{% if field.field.required %} <span class="text-rose-500">*</span>{% else %} <span class="font-normal text-slate-400">(optional)</span>{% endif %}
   </label>
   <div class="mt-1">{{ field }}</div>
   {% if hint %}<p class="mt-1 text-xs text-slate-400">{{ hint }}</p>{% endif %}

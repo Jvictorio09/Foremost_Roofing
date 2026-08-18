@@ -4,7 +4,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.root_redirect, name='root'),
+    path('', views.landing, name='root'),
     path('login/', views.LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -78,6 +78,7 @@ urlpatterns = [
     path('masters/customers/', views.customer_list, name='customer_list'),
     path('masters/customers/new/', views.customer_create, name='customer_create'),
     path('masters/customers/quick-new/', views.customer_quick_create, name='customer_quick_create'),
+    path('masters/salespersons/quick-new/', views.salesperson_quick_create, name='salesperson_quick_create'),
     path('masters/customers/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
     path('masters/suppliers/', views.supplier_list, name='supplier_list'),
     path('masters/suppliers/new/', views.supplier_create, name='supplier_create'),

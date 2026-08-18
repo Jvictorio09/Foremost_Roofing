@@ -6,13 +6,15 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from django.utils.text import slugify
+
 from ..forms import (
     ColorForm, CustomerForm, CustomerQuickForm, ItemForm, MachineForm, ProfileForm,
-    StandardDrawingForm, SupplierForm,
+    SalespersonQuickForm, StandardDrawingForm, SupplierForm,
 )
 from ..models import (
     AppSetting, AttributeDefinition, CategoryAttribute, Color, Customer, Item,
-    ItemCategory, Machine, Profile, StandardDrawing, Supplier, Warehouse,
+    ItemCategory, Machine, Profile, Role, StandardDrawing, Supplier, User, Warehouse,
 )
 from ..rbac import permission_required
 from .common import is_hx, paginate
@@ -101,6 +103,46 @@ def customer_quick_create(request):
         form = CustomerQuickForm()
     return render(request, 'masters/_form_modal.html', {
         'form': form, 'title': 'New Customer',
+        'form_action': request.path})
+
+
+@permission_required('quotation.create')
+def salesperson_quick_create(request):
+    """Inline salesperson creation used from the quotation form. Creates a
+    Sales-role user with an unusable password and fires a ``salespersonCreated``
+    htmx event so the opener can add and select it in the dropdown."""
+    if request.method == 'POST':
+        form = SalespersonQuickForm(request.POST)
+        if form.is_valid():
+            full = form.cleaned_data['full_name'].strip()
+            parts = full.split()
+            base = (slugify(full) or 'salesperson').replace('-', '.')[:120] or 'salesperson'
+            username = base
+            i = 1
+            while User.objects.filter(username=username).exists():
+                i += 1
+                username = f'{base}{i}'
+            user = User(
+                username=username,
+                first_name=parts[0] if parts else full,
+                last_name=' '.join(parts[1:]),
+                email=form.cleaned_data.get('email', ''),
+                phone=form.cleaned_data.get('phone', ''),
+                is_active=True,
+            )
+            user.set_unusable_password()
+            user.save()
+            sales_role = Role.objects.filter(name='Sales').first()
+            if sales_role:
+                user.roles.add(sales_role)
+            resp = HttpResponse(status=204)
+            resp['HX-Trigger'] = json.dumps({
+                'salespersonCreated': {'id': user.pk, 'name': str(user)}})
+            return resp
+    else:
+        form = SalespersonQuickForm()
+    return render(request, 'masters/_form_modal.html', {
+        'form': form, 'title': 'New Salesperson',
         'form_action': request.path})
 
 

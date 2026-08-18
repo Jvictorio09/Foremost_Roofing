@@ -12,6 +12,7 @@
   <form id="quote-form" method="post" enctype="multipart/form-data" class="space-y-6 pb-28">
     {% csrf_token %}
     {{ standard_drawings|json_script:"drawing-map" }}
+    {{ item_prices|json_script:"item-prices" }}
 
     {% if form.non_field_errors %}
       <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ form.non_field_errors }}</div>
@@ -43,7 +44,19 @@
         </div>
         {% include 'partials/field.html' with field=form.quote_date %}
         {% include 'partials/field.html' with field=form.valid_until hint='Leave blank to use the default validity period.' %}
-        {% include 'partials/field.html' with field=form.salesperson wrap='sm:col-span-2' %}
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-slate-600">{{ form.salesperson.label }} <span class="font-normal text-slate-400">(optional)</span></label>
+          <div class="mt-1 flex items-center gap-2">
+            <div class="flex-1">{{ form.salesperson }}</div>
+            <button type="button" hx-get="{% url 'salesperson_quick_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              New salesperson
+            </button>
+          </div>
+          {% if form.salesperson.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.salesperson.errors|striptags }}</p>{% endif %}
+          <p class="mt-1 text-xs text-slate-400">Leave blank to assign yourself.</p>
+        </div>
       </div>
     </section>
 
@@ -361,14 +374,37 @@
     renumber(); recalcTotals();
   }
 
+  // Catalog unit prices, keyed by item id. When a line's item is chosen we drop
+  // its published price straight into the Unit Price box so the line total shows
+  // immediately and re-computes as the quantity changes.
+  function itemPrices() {
+    try { return JSON.parse(document.getElementById('item-prices').textContent || '{}'); }
+    catch (e) { return {}; }
+  }
+  function applyItemPrice(itemSelect) {
+    var row = itemSelect.closest('[data-line]');
+    if (!row) return;
+    var priceEl = row.querySelector('[name$="-unit_price"]');
+    if (!priceEl) return;
+    var price = itemPrices()[itemSelect.value];
+    if (itemSelect.value && price != null) {
+      priceEl.value = Number(price).toFixed(2);
+      recalcTotals();
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     renumber(); recalcTotals();
     var form = document.getElementById('quote-form');
-    if (form) form.addEventListener('input', function (e) {
+    if (!form) return;
+    form.addEventListener('input', function (e) {
       var name = e.target.name || '';
       if (/-(quantity|unit_price|discount)$/.test(name) || e.target.id === 'id_discount') {
         recalcTotals();
       }
+    });
+    form.addEventListener('change', function (e) {
+      if (/-item$/.test(e.target.name || '')) applyItemPrice(e.target);
     });
   });
 
@@ -397,6 +433,22 @@
   document.body.addEventListener('customerCreated', function (e) {
     var data = e.detail || {};
     var select = document.getElementById('id_customer');
+    if (select && data.id) {
+      if (select.tomselect) {
+        select.tomselect.addOption({ value: data.id, text: data.name });
+        select.tomselect.addItem(data.id);
+      } else {
+        select.add(new Option(data.name, data.id, true, true));
+        select.dispatchEvent(new Event('change'));
+      }
+    }
+    var root = document.getElementById('modal-root');
+    if (root) root.innerHTML = '';
+  });
+
+  document.body.addEventListener('salespersonCreated', function (e) {
+    var data = e.detail || {};
+    var select = document.getElementById('id_salesperson');
     if (select && data.id) {
       if (select.tomselect) {
         select.tomselect.addOption({ value: data.id, text: data.name });

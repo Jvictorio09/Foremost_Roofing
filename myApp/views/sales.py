@@ -96,7 +96,7 @@ def quotation_create(request):
         formset = QuotationLineFormSet()
     return render(request, 'sales/quotation_form.html', {
         'form': form, 'formset': formset, 'title': 'New Quotation',
-        'standard_drawings': _drawing_map()})
+        'standard_drawings': _drawing_map(), 'item_prices': _item_price_map()})
 
 
 @permission_required('quotation.edit')
@@ -121,7 +121,7 @@ def quotation_edit(request, pk):
         formset = QuotationLineFormSet(instance=quotation)
     return render(request, 'sales/quotation_form.html', {
         'form': form, 'formset': formset, 'title': f'Edit {quotation.display_number}',
-        'standard_drawings': _drawing_map()})
+        'standard_drawings': _drawing_map(), 'item_prices': _item_price_map()})
 
 
 def _drawing_map():
@@ -129,6 +129,23 @@ def _drawing_map():
     from ..models import StandardDrawing
     return {d.pk: d.image.url for d in StandardDrawing.objects.filter(
         is_active=True) if d.image}
+
+
+def _item_price_map():
+    """{item_id: unit_price} from the default price list's latest version, for
+    items that carry a direct (item-keyed) price row. Used to prefill the unit
+    price on a quotation line as soon as an item is picked."""
+    from ..models import PriceList
+    pl = PriceList.objects.filter(is_default=True).first() or PriceList.objects.first()
+    if not pl:
+        return {}
+    ver = pl.versions.first()  # PriceListVersion ordering is -effective_from
+    if not ver:
+        return {}
+    prices = {}
+    for row in ver.rows.filter(item__isnull=False).values('item_id', 'unit_price'):
+        prices.setdefault(row['item_id'], float(row['unit_price']))
+    return prices
 
 
 @require_POST

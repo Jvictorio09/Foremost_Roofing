@@ -9,13 +9,89 @@
   </div>
 </div>
 
+{% if dash_charts %}{{ dash_charts|json_script:"dash-charts" }}{% endif %}
+
+{% if overview %}
+  <!-- Headline stats -->
+  <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {% for s in overview.stats %}
+      <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div class="flex items-start justify-between">
+          <span class="text-sm font-medium text-slate-500">{{ s.label }}</span>
+          <span class="flex h-8 w-8 items-center justify-center rounded-full
+            {% if s.tone == 'green' %}bg-emerald-50 text-emerald-600{% elif s.tone == 'rose' %}bg-rose-50 text-rose-600{% elif s.tone == 'indigo' %}bg-indigo-50 text-indigo-600{% else %}bg-blue-50 text-blue-600{% endif %}">
+            {% icon 'chart' %}
+          </span>
+        </div>
+        <div class="mt-3 text-3xl font-bold tracking-tight
+          {% if s.tone == 'green' %}text-emerald-600{% elif s.tone == 'rose' %}text-rose-600{% elif s.tone == 'indigo' %}text-indigo-600{% else %}text-blue-600{% endif %}">
+          {% if s.money %}&#8369;{{ s.value|money }}{% else %}{{ s.value|default_if_none:'—' }}{{ s.suffix }}{% endif %}
+        </div>
+        <p class="mt-1 text-xs text-slate-400">{{ s.sub }}</p>
+        {% if s.spark %}
+          <div class="mt-3 h-10"><canvas data-spark="{{ s.spark }}"></canvas></div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Revenue + AR aging -->
+  <div class="mb-6 grid gap-4 lg:grid-cols-3">
+    <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm lg:col-span-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800">Revenue by month</h3>
+          <p class="text-xs text-slate-400">Invoiced sales vs forecast &middot; {{ overview.year }}</p>
+        </div>
+        <a href="{% url 'report_sales' %}" class="text-xs font-medium text-blue-600 hover:underline">View report</a>
+      </div>
+      <div class="mt-4 h-64"><canvas id="dashRevenue"></canvas></div>
+    </div>
+    <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h3 class="text-sm font-semibold text-slate-800">Receivables aging</h3>
+      <p class="text-xs text-slate-400">Outstanding balance by bucket</p>
+      <div class="mt-4 flex h-64 items-center justify-center"><canvas id="dashAging"></canvas></div>
+    </div>
+  </div>
+
+  {% if overview.has_production %}
+  <!-- Production + top customers -->
+  <div class="mb-8 grid gap-4 lg:grid-cols-3">
+    <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm lg:col-span-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800">Production output</h3>
+          <p class="text-xs text-slate-400">Linear metres per month vs forecast &middot; {{ overview.year }}</p>
+        </div>
+        <a href="{% url 'report_production' %}" class="text-xs font-medium text-blue-600 hover:underline">View report</a>
+      </div>
+      <div class="mt-4 h-56"><canvas id="dashProduction"></canvas></div>
+    </div>
+    <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h3 class="text-sm font-semibold text-slate-800">Top customers</h3>
+      <p class="text-xs text-slate-400">By invoiced value &middot; {{ overview.year }}</p>
+      <ul class="mt-3 space-y-2">
+        {% for c in overview.top_customers %}
+          <li class="flex items-center justify-between text-sm">
+            <span class="truncate pr-2 text-slate-600">{{ c.customer }}</span>
+            <span class="font-semibold tabular-nums text-slate-900">&#8369;{{ c.invoiced|money }}</span>
+          </li>
+        {% empty %}
+          <li class="py-6 text-center text-xs text-slate-400">No invoiced sales yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+{% endif %}
+
 {% if highlights %}
 <div class="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
   {% for h in highlights %}
     <button type="button"
       hx-get="{% url 'dashboard_panel' %}?key={{ h.key }}" hx-target="#modal-root" hx-swap="innerHTML"
-      class="group flex items-center gap-3 rounded-xl border p-4 text-left transition hover:shadow-md
-      {% if h.tone == 'red' %}border-rose-200 bg-rose-50{% elif h.tone == 'yellow' %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-white{% endif %}">
+      class="group flex items-center gap-3 rounded-2xl border p-4 text-left transition hover:shadow-md
+      {% if h.tone == 'red' %}border-rose-200 bg-rose-50{% elif h.tone == 'yellow' %}border-amber-200 bg-amber-50{% else %}border-slate-100 bg-white shadow-sm{% endif %}">
       <span class="flex h-10 w-10 flex-none items-center justify-center rounded-full
         {% if h.tone == 'red' %}bg-rose-100 text-rose-600{% elif h.tone == 'yellow' %}bg-amber-100 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
         {% icon 'chart' %}
@@ -38,7 +114,7 @@
       {% for card in section.cards %}
         <button type="button"
           {% if card.key %}hx-get="{% url 'dashboard_panel' %}?key={{ card.key }}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
-          class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+          class="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <span class="absolute inset-y-0 left-0 w-1
             {% if card.tone == 'red' %}bg-rose-400{% elif card.tone == 'yellow' %}bg-amber-400{% elif card.tone == 'green' %}bg-emerald-400{% elif card.tone == 'blue' %}bg-blue-400{% else %}bg-slate-200{% endif %}"></span>
           <div class="flex items-center justify-between">
@@ -54,23 +130,25 @@
     </div>
   </section>
 {% empty %}
-  <div class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+  {% if not overview %}
+  <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
     Your account has no dashboard modules yet. Ask an administrator to assign a role.
   </div>
+  {% endif %}
 {% endfor %}
 
 {% if production_queue %}
 <section class="mb-8">
-  <div class="rounded-xl border border-slate-200 bg-white">
-    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+  <div class="rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
       <h3 class="flex items-center gap-2 text-sm font-semibold"><span class="text-slate-400">{% icon 'hammer' %}</span> Production Work Queue</h3>
-      <a href="{% url 'job_order_list' %}" class="text-xs font-medium text-blue-600">View all</a>
+      <a href="{% url 'job_order_list' %}" class="text-xs font-medium text-blue-600 hover:underline">View all</a>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-slate-100 text-sm">
         <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
           <tr>
-            <th class="px-4 py-2.5">Job Order</th>
+            <th class="px-5 py-2.5">Job Order</th>
             <th class="px-4 py-2.5">Customer</th>
             <th class="px-4 py-2.5">Priority</th>
             <th class="px-4 py-2.5">Due</th>
@@ -83,7 +161,7 @@
           {% for r in production_queue %}
           <tr class="cursor-pointer hover:bg-slate-50 {% if r.late %}bg-rose-50/50{% endif %}"
               hx-get="{% url 'job_order_detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
-            <td class="px-4 py-2.5 font-medium text-slate-900">{{ r.number }}</td>
+            <td class="px-5 py-2.5 font-medium text-slate-900">{{ r.number }}</td>
             <td class="px-4 py-2.5 text-slate-600">{{ r.customer }}</td>
             <td class="px-4 py-2.5">
               <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
@@ -118,16 +196,16 @@
 
 <div class="grid gap-6 lg:grid-cols-2">
   {% if recent_quotes %}
-  <div class="rounded-xl border border-slate-200 bg-white">
-    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+  <div class="rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
       <h3 class="text-sm font-semibold">Recent Quotations</h3>
-      <a href="{% url 'quotation_list' %}" class="text-xs font-medium text-blue-600">View all</a>
+      <a href="{% url 'quotation_list' %}" class="text-xs font-medium text-blue-600 hover:underline">View all</a>
     </div>
     <ul class="divide-y divide-slate-100">
       {% for q in recent_quotes %}
-        <li class="flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50"
+        <li class="flex cursor-pointer items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
             hx-get="{% url 'quotation_detail' q.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
-          <span class="font-medium">{{ q.display_number }}</span>
+          <span class="font-medium text-slate-900">{{ q.display_number }}</span>
           <span class="truncate px-2 text-slate-500">{{ q.customer.name }}</span>
           {% include 'partials/badge.html' with status=q.status label=q.get_status_display %}
         </li>
@@ -136,17 +214,36 @@
   </div>
   {% endif %}
 
-  {% if recent_jos and not production_queue %}
-  <div class="rounded-xl border border-slate-200 bg-white">
-    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+  {% if production_queue %}
+    {% if recent_deliveries %}
+    <div class="rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+        <h3 class="text-sm font-semibold">Recent Deliveries</h3>
+        <a href="{% url 'delivery_list' %}" class="text-xs font-medium text-blue-600 hover:underline">View all</a>
+      </div>
+      <ul class="divide-y divide-slate-100">
+        {% for d in recent_deliveries %}
+          <li class="flex cursor-pointer items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
+              hx-get="{% url 'delivery_detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+            <span class="font-medium text-slate-900">{{ d.number|default:d.pk }}</span>
+            <span class="truncate px-2 text-slate-500">{{ d.customer.name }}</span>
+            {% include 'partials/badge.html' with status=d.status label=d.get_status_display %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  {% elif recent_jos %}
+  <div class="rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
       <h3 class="text-sm font-semibold">Recent Job Orders</h3>
-      <a href="{% url 'job_order_list' %}" class="text-xs font-medium text-blue-600">View all</a>
+      <a href="{% url 'job_order_list' %}" class="text-xs font-medium text-blue-600 hover:underline">View all</a>
     </div>
     <ul class="divide-y divide-slate-100">
       {% for jo in recent_jos %}
-        <li class="flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50"
+        <li class="flex cursor-pointer items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
             hx-get="{% url 'job_order_detail' jo.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
-          <span class="font-medium">{{ jo.number }}</span>
+          <span class="font-medium text-slate-900">{{ jo.number }}</span>
           <span class="truncate px-2 text-slate-500">{{ jo.customer.name }}</span>
           {% include 'partials/badge.html' with status=jo.status label=jo.get_status_display %}
         </li>
@@ -155,4 +252,83 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if dash_charts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    var el = document.getElementById('dash-charts');
+    if (!el || typeof Chart === 'undefined') return;
+    var d = JSON.parse(el.textContent);
+    var money = function (v) { return '\u20b1' + (v || 0).toLocaleString(); };
+    var gridColor = 'rgba(148,163,184,.15)';
+    var baseFont = { size: 10 };
+
+    // Headline sparklines
+    document.querySelectorAll('canvas[data-spark]').forEach(function (cv) {
+      var series = d[cv.dataset.spark];
+      if (!series) return;
+      var color = cv.dataset.spark === 'collected' ? '#059669' : '#2563eb';
+      new Chart(cv, {
+        type: 'line',
+        data: { labels: d.labels, datasets: [{
+          data: series, borderColor: color, borderWidth: 2,
+          fill: true, backgroundColor: color + '14', tension: .4, pointRadius: 0,
+        }] },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: { x: { display: false }, y: { display: false } } },
+      });
+    });
+
+    // Revenue bars + forecast line
+    var rev = document.getElementById('dashRevenue');
+    if (rev) new Chart(rev, {
+      data: { labels: d.labels, datasets: [
+        { type: 'bar', label: 'Invoiced', data: d.invoiced, backgroundColor: '#2563eb',
+          borderRadius: 6, maxBarThickness: 26 },
+        { type: 'line', label: 'Forecast', data: d.invoiced_forecast, borderColor: '#94a3b8',
+          borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .3, spanGaps: true },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { boxWidth: 12, font: baseFont } },
+          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + money(c.raw); } } } },
+        scales: { x: { grid: { display: false }, ticks: { font: baseFont } },
+          y: { grid: { color: gridColor }, ticks: { font: baseFont,
+            callback: function (v) { return v >= 1000 ? (v / 1000) + 'k' : v; } } } } },
+    });
+
+    // AR aging donut
+    var ag = document.getElementById('dashAging');
+    if (ag) new Chart(ag, {
+      type: 'doughnut',
+      data: { labels: d.ar_aging_labels, datasets: [{
+        data: d.ar_aging,
+        backgroundColor: ['#059669', '#f59e0b', '#f97316', '#e11d48'],
+        borderWidth: 2, borderColor: '#fff' }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: baseFont, padding: 12 } },
+          tooltip: { callbacks: { label: function (c) { return c.label + ': ' + money(c.raw); } } } } },
+    });
+
+    // Production bars + forecast
+    var pr = document.getElementById('dashProduction');
+    if (pr && d.production_lm) new Chart(pr, {
+      data: { labels: d.production_labels, datasets: [
+        { type: 'bar', label: 'Output (LM)', data: d.production_lm, backgroundColor: '#059669',
+          borderRadius: 6, maxBarThickness: 26 },
+        { type: 'line', label: 'Forecast', data: d.production_forecast, borderColor: '#94a3b8',
+          borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: .3, spanGaps: true },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { boxWidth: 12, font: baseFont } } },
+        scales: { x: { grid: { display: false }, ticks: { font: baseFont } },
+          y: { grid: { color: gridColor }, ticks: { font: baseFont,
+            callback: function (v) { return v >= 1000 ? (v / 1000) + 'k' : v; } } } } },
+    });
+  })();
+</script>
+{% endif %}
 {% endblock %}

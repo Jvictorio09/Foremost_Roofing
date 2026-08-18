@@ -53,10 +53,10 @@
       <h3 class="mb-3 text-sm font-semibold">Record Payment</h3>
       <form method="post" action="{% url 'invoice_record_payment' inv.pk %}" class="flex flex-wrap items-end gap-3">
         {% csrf_token %}
-        <div><label class="block text-xs text-slate-500">Amount</label>{{ payment_form.amount }}</div>
-        <div><label class="block text-xs text-slate-500">Method</label>{{ payment_form.method }}</div>
-        <div><label class="block text-xs text-slate-500">Reference</label>{{ payment_form.reference }}</div>
-        <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Add</button>
+        <div class="w-32"><label class="mb-1 block text-xs text-slate-500">Amount</label>{{ payment_form.amount }}</div>
+        <div class="w-40"><label class="mb-1 block text-xs text-slate-500">Method</label>{{ payment_form.method }}</div>
+        <div class="min-w-[10rem] flex-1"><label class="mb-1 block text-xs text-slate-500">Reference</label>{{ payment_form.reference }}</div>
+        <button class="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800">Add</button>
       </form>
       {% if payments %}
       <ul class="mt-3 divide-y divide-slate-100 text-sm">
