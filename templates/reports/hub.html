@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-semibold tracking-tight">Reports</h1>
+  <p class="mt-1 text-sm text-slate-500">Key numbers at a glance &mdash; open any report for the full breakdown.</p>
+</div>
+{% include 'reports/_tabs.html' %}
+<div class="grid gap-4 md:grid-cols-2">
+  {% for r in reports %}
+    <a href="{% url r.url %}" class="group block rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-md">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-2">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">{% icon r.icon %}</span>
+          <div>
+            <h3 class="text-sm font-semibold">{{ r.label }}</h3>
+            <p class="text-xs text-slate-500">{{ r.desc }}</p>
+          </div>
+        </div>
+        <svg class="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {% for s in r.stats %}
+          <div class="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+            <div class="text-lg font-semibold leading-tight
+              {% if s.tone == 'red' %}text-rose-600{% elif s.tone == 'green' %}text-emerald-600{% elif s.tone == 'yellow' %}text-amber-600{% elif s.tone == 'blue' %}text-blue-600{% else %}text-slate-900{% endif %}">{{ s.value }}</div>
+            <div class="mt-0.5 truncate text-xs text-slate-500">{{ s.label }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </a>
+  {% empty %}
+    <div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No reports available for your role.</div>
+  {% endfor %}
+</div>
+{% endblock %}

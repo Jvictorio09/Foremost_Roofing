@@ -1,0 +1,8 @@
+{% for field in form %}
+  <div>
+    <label class="block text-xs font-medium text-slate-500">{{ field.label }}</label>
+    <div class="mt-1">{{ field }}</div>
+    {% if field.help_text %}<p class="mt-1 text-xs text-slate-400">{{ field.help_text }}</p>{% endif %}
+    {% if field.errors %}<p class="mt-1 text-xs text-rose-600">{{ field.errors|striptags }}</p>{% endif %}
+  </div>
+{% endfor %}

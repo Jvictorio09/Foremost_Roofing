@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}Deliveries{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-semibold tracking-tight">Deliveries</h1>
+  {% can user 'delivery.schedule' as may_sched %}
+  {% if may_sched %}<a href="{% url 'delivery_create' %}" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">{% icon 'plus' %} Schedule Delivery</a>{% endif %}
+</div>
+
+<form method="get" class="mb-4 flex gap-3">
+  <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+    <option value="">All statuses</option>
+    {% for value, label in statuses %}<option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">Filter</button>
+</form>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Number</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Job Order</th><th class="px-4 py-3">Scheduled</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for d in page_obj %}
+        <tr class="cursor-pointer hover:bg-slate-50"
+            hx-get="{% url 'delivery_detail' d.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+          <td class="px-4 py-3 font-medium text-slate-900">{{ d.number }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ d.customer.name }}</td>
+          <td class="px-4 py-3 text-slate-500">{{ d.job_order.number|default:'-' }}</td>
+          <td class="px-4 py-3 text-slate-500">{{ d.scheduled_for|date:'M d, H:i'|default:'-' }}</td>
+          <td class="px-4 py-3">{% include 'partials/badge.html' with status=d.status label=d.get_status_display %}</td>
+          <td class="px-4 py-3 text-right"><a href="{% url 'delivery_print' d.pk %}" target="_blank" onclick="event.stopPropagation()" title="Print" class="inline-flex text-slate-400 hover:text-slate-700">{% icon 'file' %}</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">No deliveries.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'partials/pagination.html' %}
+{% endblock %}

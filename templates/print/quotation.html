@@ -1,0 +1,134 @@
+{% extends 'print/base_print.html' %}
+{% load humanize %}
+{% block doc_title %}{{ q.display_number }} - Sales Quotation{% endblock %}
+{% block document %}
+<div class="doc-frame">
+  {% include 'print/_letterhead.html' %}
+  <div class="doc-band">Sales Quotation</div>
+
+  <table class="meta" style="border-bottom:1.5px solid #111827;">
+    <tr>
+      <td class="k" style="width:14%;">Name:</td>
+      <td style="width:44%; border-bottom:1px solid #9ca3af;">{{ q.customer.name }}</td>
+      <td class="k" style="width:14%;">Date:</td>
+      <td style="width:28%; border-bottom:1px solid #9ca3af;">{{ q.quote_date|date:'m/d/y' }}</td>
+    </tr>
+    <tr>
+      <td class="k">Attention:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ q.customer.contact_person|default:'' }}</td>
+      <td class="k">Contact #:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ q.customer.phone|default:'' }}</td>
+    </tr>
+    <tr>
+      <td class="k">Project Site:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ q.project_site|default:'' }}</td>
+      <td class="k">Sales Rep:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ q.salesperson.get_full_name|default:company.sales_rep }}</td>
+    </tr>
+    <tr>
+      <td class="k">Quotation #:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ q.display_number }}</td>
+      <td class="k">Valid Until:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ q.valid_until|date:'m/d/y'|default:'' }}</td>
+    </tr>
+  </table>
+
+  <table class="lines" style="margin-top:0;">
+    <thead>
+      <tr>
+        <th style="width:9%;" class="num">Qty</th>
+        <th style="width:9%;">Unit</th>
+        <th>Description</th>
+        <th style="width:16%;" class="num">Unit Price</th>
+        <th style="width:18%;" class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for section in sections %}
+      <tr>
+        <td colspan="5" style="background:#eef2f7; font-weight:700; text-transform:uppercase; font-size:10.5px;">{{ section.title }}</td>
+      </tr>
+      {% for l in section.lines %}
+      <tr>
+        <td class="num">{{ l.quantity|floatformat:2 }}</td>
+        <td>{{ l.uom }}</td>
+        <td>
+          {{ l.description }}
+          {% if l.length_rows %}<div class="sub">{% for r in l.length_rows %}{{ r.pcs }} pcs @ {{ r.len }}m{% if not forloop.last %}, {% endif %}{% endfor %}{% if l.length_total %} = {{ l.length_total|floatformat:2 }} {{ l.uom }}{% endif %}</div>{% endif %}
+          {% if l.spec_rows %}<div class="sub">{% for r in l.spec_rows %}{{ r.label }}: {{ r.value }}{% if not forloop.last %} &nbsp;&bull;&nbsp; {% endif %}{% endfor %}</div>{% endif %}
+        </td>
+        <td class="num">{{ l.unit_price|floatformat:2|intcomma }}</td>
+        <td class="num">{{ l.line_total|floatformat:2|intcomma }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="4" class="num sub" style="font-weight:700;">{{ section.title }} subtotal</td>
+        <td class="num" style="font-weight:700;">{{ section.subtotal|floatformat:2|intcomma }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="center muted" style="padding:16px;">No items.</td></tr>
+      {% endfor %}
+      {% for i in filler %}
+      <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if drawings %}
+  <table style="margin-top:8px; border:1px solid #9ca3af;">
+    <tr><td colspan="{{ drawings|length }}" style="background:#eef2f7; font-weight:700; text-transform:uppercase; font-size:10px; padding:3px 6px;">Reference Drawings</td></tr>
+    <tr>
+      {% for d in drawings %}
+      <td style="width:{% widthratio 100 drawings|length 1 %}%; text-align:center; vertical-align:top; padding:6px; border-left:1px solid #e5e7eb;">
+        {% if d.svg %}<div style="height:120px; margin:0 auto;">{{ d.svg }}</div>
+        {% else %}<img src="{{ d.url }}" alt="{{ d.caption }}" style="max-height:120px; max-width:100%; object-fit:contain;">{% endif %}
+        <div style="font-size:9.5px; font-weight:700; text-transform:uppercase; margin-top:2px;">{{ d.caption }}</div>
+        {% if d.girth %}<div style="font-size:9px; color:#6b7280;">Girth: {{ d.girth }}</div>{% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+  {% endif %}
+
+  <table style="margin-top:8px;">
+    <tr>
+      <td style="width:58%; vertical-align:top;">
+        <div class="note-box">
+          <div style="font-weight:700; margin-bottom:3px;">Payment / Terms</div>
+          <ul class="terms" style="margin:0; padding-left:16px;">
+            {% for t in company.quotation_terms %}<li>{{ t }}</li>{% endfor %}
+          </ul>
+        </div>
+        <div class="note-box" style="margin-top:6px;">
+          <div style="font-weight:700; margin-bottom:3px;">Please make payment to</div>
+          <div>{{ company.name }}</div>
+          <div>{{ company.bank1 }}</div>
+          <div>{{ company.bank2 }}</div>
+        </div>
+      </td>
+      <td style="width:42%; vertical-align:top; padding-left:10px;">
+        <table>
+          <tr class="totrow"><td>Subtotal</td><td class="num">{{ q.subtotal|floatformat:2|intcomma }}</td></tr>
+          <tr class="totrow"><td>Less Discount</td><td class="num">{% if q.discount %}({{ q.discount|floatformat:2|intcomma }}){% else %}0.00{% endif %}</td></tr>
+          <tr class="totrow"><td>VAT{% if q.tax_code %} ({{ q.tax_code.rate_pct|floatformat:0 }}%){% endif %}</td><td class="num">{{ q.tax_amount|floatformat:2|intcomma }}</td></tr>
+          <tr class="totrow" style="border-top:1.5px solid #111827;">
+            <td class="grand">GRAND TOTAL</td>
+            <td class="num grand">{{ q.total|floatformat:2|intcomma }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div class="sig p2">
+    <div class="box">
+      <div style="font-weight:700; font-size:10px;">CONFORME:</div>
+      <div class="line">Signature over Printed Name / Date</div>
+    </div>
+    <div class="box">
+      <div style="font-weight:700; font-size:10px;">Respectfully yours,</div>
+      <div class="line">{{ q.salesperson.get_full_name|default:company.sales_rep }}</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

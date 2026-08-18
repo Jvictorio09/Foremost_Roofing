@@ -1,0 +1,91 @@
+{% extends 'print/base_print.html' %}
+{% block doc_title %}{{ jo.number }} - Job Order{% endblock %}
+{% block document %}
+<div class="doc-frame">
+  <table style="border-bottom:1.5px solid #111827;">
+    <tr>
+      <td style="width:66%; vertical-align:middle;">{% include 'print/_letterhead.html' %}</td>
+      <td style="width:34%; vertical-align:top; padding:8px 10px;">
+        <div class="doc-title-right" style="font-size:22px;">JOB ORDER</div>
+        <div class="num" style="margin-top:8px;"><span class="k">No.</span> <strong>{{ jo.number }}</strong></div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="meta" style="border-bottom:1.5px solid #111827;">
+    <tr>
+      <td class="k" style="width:14%;">Customer:</td>
+      <td style="width:58%; border-bottom:1px solid #9ca3af;">{{ jo.customer.name }}</td>
+      <td class="k" style="width:10%;">Date:</td>
+      <td style="width:18%; border-bottom:1px solid #9ca3af;">{{ jo.created_at|date:'M d, Y' }}</td>
+    </tr>
+    <tr>
+      <td class="k">Invoice / Ref:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ jo.invoice.number|default:'' }}</td>
+      <td class="k">Priority:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ jo.get_priority_display }}</td>
+    </tr>
+  </table>
+
+  <table class="lines">
+    <thead>
+      <tr>
+        <th style="width:12%;" class="num">Quantity</th>
+        <th style="width:10%;">Unit</th>
+        <th>Item Description</th>
+        <th style="width:16%;" class="center">Color</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lines %}
+      <tr>
+        <td class="num">{{ l.quantity|floatformat:2 }}</td>
+        <td>{{ l.uom }}</td>
+        <td>
+          {{ l.description }}
+          {% if l.length_rows %}<div class="sub">{% for r in l.length_rows %}{{ r.pcs }} pcs @ {{ r.len }}m{% if not forloop.last %}, {% endif %}{% endfor %}{% if l.length_total %} = {{ l.length_total|floatformat:2 }} {{ l.uom }}{% endif %}</div>{% endif %}
+          {% if l.spec_rows_no_color %}<div class="sub">{% for r in l.spec_rows_no_color %}{{ r.label }}: {{ r.value }}{% if not forloop.last %} &nbsp;&bull;&nbsp; {% endif %}{% endfor %}</div>{% endif %}
+          {% if l.requires_drawing %}<div class="sub">* Drawing required</div>{% endif %}
+        </td>
+        <td class="center">{{ l.color_label }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="center muted" style="padding:16px;">No items.</td></tr>
+      {% endfor %}
+      {% for i in filler %}
+      <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if drawings %}
+  <table style="margin-top:8px; border:1px solid #9ca3af;">
+    <tr><td colspan="{{ drawings|length }}" style="background:#eef2f7; font-weight:700; text-transform:uppercase; font-size:10px; padding:3px 6px;">Reference Drawings</td></tr>
+    <tr>
+      {% for d in drawings %}
+      <td style="width:{% widthratio 100 drawings|length 1 %}%; text-align:center; vertical-align:top; padding:6px; border-left:1px solid #e5e7eb;">
+        {% if d.svg %}<div style="height:120px; margin:0 auto;">{{ d.svg }}</div>
+        {% else %}<img src="{{ d.url }}" alt="{{ d.caption }}" style="max-height:120px; max-width:100%; object-fit:contain;">{% endif %}
+        <div style="font-size:9.5px; font-weight:700; text-transform:uppercase; margin-top:2px;">{{ d.caption }}</div>
+        {% if d.girth %}<div style="font-size:9px; color:#6b7280;">Girth: {{ d.girth }}</div>{% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+  {% endif %}
+
+  {% if jo.required_date or jo.notes %}
+  <div class="center" style="font-weight:800; letter-spacing:1px; padding:8px; text-transform:uppercase;">
+    {% if jo.notes %}{{ jo.notes }}{% else %}Required by {{ jo.required_date|date:'M d, Y' }}{% endif %}
+  </div>
+  {% endif %}
+
+  <table class="lines" style="margin-top:10px;">
+    <tr>
+      <td class="center" style="height:56px; vertical-align:bottom;"><div class="k">Roofing Prepared By</div></td>
+      <td class="center" style="vertical-align:bottom;"><div class="k">Bended &amp; Hardware Prepared By</div></td>
+      <td class="center" style="vertical-align:bottom;"><div class="k">Checked By</div></td>
+    </tr>
+  </table>
+</div>
+{% endblock %}

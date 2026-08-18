@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}Users & Roles{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-semibold tracking-tight">Users</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'role_list' %}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Roles</a>
+    {% can user 'user.manage' as may_manage %}
+    {% if may_manage %}<a href="{% url 'user_create' %}" hx-get="{% url 'user_create' %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">{% icon 'plus' %} New User</a>{% endif %}
+  </div>
+</div>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Username</th><th class="px-4 py-3">Name</th><th class="px-4 py-3">Roles</th><th class="px-4 py-3">Active</th><th class="px-4 py-3"></th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for u in users %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium">{{ u.username }}{% if u.is_superuser %} <span class="ml-1 rounded bg-slate-900 px-1.5 py-0.5 text-xs text-white">Super</span>{% endif %}</td>
+          <td class="px-4 py-3 text-slate-600">{{ u.get_full_name|default:'-' }}</td>
+          <td class="px-4 py-3 text-slate-500">{% for r in u.roles.all %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+          <td class="px-4 py-3">{% if u.is_active %}<span class="text-emerald-600">Yes</span>{% else %}<span class="text-rose-600">No</span>{% endif %}</td>
+          <td class="px-4 py-3 text-right"><a href="{% url 'user_edit' u.pk %}" hx-get="{% url 'user_edit' u.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-sm font-medium text-blue-600 hover:underline">Edit</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

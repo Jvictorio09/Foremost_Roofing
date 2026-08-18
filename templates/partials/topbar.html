@@ -1,0 +1,34 @@
+{% load core_tags %}
+<header class="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-200 bg-white px-6 print:hidden">
+  <div class="relative flex-1 max-w-xl" x-data="{ open: false }"
+       @click.outside="open = false" @keydown.escape="open = false">
+    <div class="relative">
+      <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{% icon 'search' %}</span>
+      <input type="search" name="q" autocomplete="off"
+             placeholder="Search quotations, invoices, job orders, customers..."
+             hx-get="{% url 'global_search' %}"
+             hx-trigger="input changed delay:250ms, focus"
+             hx-target="#search-results"
+             hx-swap="innerHTML"
+             @focus="open = true"
+             @input="open = true"
+             class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm placeholder-slate-400 focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+      <div class="htmx-indicator pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+        <svg class="h-4 w-4 animate-spin text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/></svg>
+      </div>
+    </div>
+    <div x-show="open" x-cloak x-transition.opacity
+         class="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+      <div id="search-results"></div>
+    </div>
+  </div>
+  <div class="ml-auto flex items-center gap-3">
+    <button class="relative rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50">
+      {% icon 'bell' %}
+    </button>
+    <div class="text-right text-sm leading-tight">
+      <div class="font-semibold">{{ user.get_full_name|default:user.username }}</div>
+      <div class="text-xs text-slate-500">{{ role_label }}</div>
+    </div>
+  </div>
+</header>

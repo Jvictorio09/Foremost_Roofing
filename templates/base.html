@@ -1,0 +1,91 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Foremost Roofing{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    /* Make Tom Select match the Tailwind text inputs used across the app. */
+    .ts-wrapper { width: 100%; }
+    .ts-wrapper .ts-control {
+      border-radius: 0.5rem; border: 1px solid #e2e8f0; background: #fff;
+      padding: 0.4rem 0.6rem; min-height: 38px; font-size: 0.875rem; box-shadow: none;
+    }
+    .ts-wrapper.focus .ts-control {
+      border-color: #0f172a; box-shadow: 0 0 0 2px rgba(15,23,42,0.10);
+    }
+    .ts-dropdown { border-radius: 0.5rem; border: 1px solid #e2e8f0; font-size: 0.875rem; }
+    .ts-dropdown .active { background: #f1f5f9; color: #0f172a; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            brand: {
+              50:'#f5f7fa', 100:'#e4e9f1', 500:'#1f2a44', 600:'#172037', 900:'#0b1224'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="h-full font-sans text-slate-900 antialiased">
+  {% if user.is_authenticated %}
+    <div class="flex min-h-full">
+      {% include 'partials/sidebar.html' %}
+      <div class="flex min-w-0 flex-1 flex-col">
+        {% include 'partials/topbar.html' %}
+        <main class="flex-1 px-8 py-8 print:p-0">
+          {% if messages %}
+            <div class="mb-6 space-y-2">
+              {% for m in messages %}
+                <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">{{ m }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+    <div id="modal-root" class="print:hidden"></div>
+  {% else %}
+    {% block guest %}{% endblock %}
+  {% endif %}
+
+  <script>
+    // Turn every <select class="js-search"> into a searchable dropdown. Runs on
+    // first load and again whenever htmx swaps in new content (modals, panels).
+    function initSearchSelects(root) {
+      if (typeof TomSelect === 'undefined') return;
+      (root || document).querySelectorAll('select.js-search').forEach(function (el) {
+        if (el.tomselect) return; // already initialised
+        new TomSelect(el, {
+          allowEmptyOption: true,
+          placeholder: el.dataset.placeholder || 'Search…',
+          searchField: ['text'],
+          maxOptions: 500,
+        });
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function () { initSearchSelects(); });
+    document.body.addEventListener('htmx:afterSettle', function (e) {
+      initSearchSelects(e.target);
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

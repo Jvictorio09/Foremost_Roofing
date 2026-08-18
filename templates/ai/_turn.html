@@ -1,0 +1,3 @@
+{% load core_tags %}
+{% if user_msg %}{% include 'ai/_message.html' with msg=user_msg %}{% endif %}
+{% if assistant_msg %}{% include 'ai/_message.html' with msg=assistant_msg %}{% endif %}

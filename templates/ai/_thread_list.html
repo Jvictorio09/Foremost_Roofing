@@ -1,0 +1,33 @@
+{% load core_tags %}
+<div class="flex h-16 items-center justify-between border-b border-slate-200 px-4">
+  <div class="text-sm font-semibold text-slate-900">Conversations</div>
+  <form method="post" action="{% url 'ai_conversation_create' %}">
+    {% csrf_token %}
+    <button class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700">
+      {% icon 'plus' %} New
+    </button>
+  </form>
+</div>
+<div class="flex-1 space-y-1 overflow-y-auto p-2">
+  {% for t in threads %}
+    <div class="group flex items-center rounded-lg transition
+                {% if active and t.pk == active.pk %}bg-white shadow-sm ring-1 ring-slate-200{% else %}hover:bg-white/70{% endif %}">
+      <a href="{% url 'ai_conversation' t.pk %}" class="min-w-0 flex-1 px-3 py-2">
+        <div class="truncate text-sm font-medium text-slate-800">{{ t.title }}</div>
+        <div class="text-xs text-slate-400">{{ t.updated_at|date:"M j, g:i A" }}</div>
+      </a>
+      <form method="post" action="{% url 'ai_conversation_delete' t.pk %}"
+            class="pr-2 opacity-0 transition group-hover:opacity-100"
+            onsubmit="return confirm('Delete this conversation?');">
+        {% csrf_token %}
+        <button class="rounded p-1 text-base leading-none text-slate-400 hover:text-rose-600"
+                title="Delete conversation">&times;</button>
+      </form>
+    </div>
+  {% empty %}
+    <div class="px-3 py-6 text-center text-xs text-slate-400">No conversations yet.</div>
+  {% endfor %}
+</div>
+<div class="border-t border-slate-200 px-4 py-3 text-[11px] leading-relaxed text-slate-400">
+  Read-only. Answers are grounded on live ERP data at the moment you ask.
+</div>

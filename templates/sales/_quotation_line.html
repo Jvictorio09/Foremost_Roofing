@@ -1,0 +1,194 @@
+{% comment %}One quotation line-item card. Param: lf (a formset form).{% endcomment %}
+<div x-data="lineEditor()" data-line class="rounded-xl border border-slate-200 bg-white shadow-sm">
+  {% for hidden in lf.hidden_fields %}{{ hidden }}{% endfor %}
+
+  <div class="flex items-start gap-3 p-4">
+    <div class="mt-6 hidden h-6 w-6 flex-none items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500 sm:flex" data-line-no>#</div>
+
+    <div class="min-w-0 flex-1 space-y-3">
+      <div class="grid gap-3 sm:grid-cols-12">
+        <div class="sm:col-span-5">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Item</label>
+          <div class="mt-1">{{ lf.item }}</div>
+        </div>
+        <div class="sm:col-span-7">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Description</label>
+          <div class="mt-1">{{ lf.description }}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-12">
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Qty</label>
+          <div class="mt-1">{{ lf.quantity }}</div>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Unit</label>
+          <div class="mt-1">{{ lf.uom }}</div>
+        </div>
+        <div class="sm:col-span-3">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Unit Price</label>
+          <div class="mt-1">{{ lf.unit_price }}</div>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Discount</label>
+          <div class="mt-1">{{ lf.discount }}</div>
+        </div>
+        <div class="sm:col-span-3">
+          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Line total</label>
+          <div class="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-right text-sm font-semibold text-slate-800" data-line-total>0.00</div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 pt-1">
+        <button type="button" @click="show = !show"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg>
+          Sizes &amp; drawing
+          <span x-show="specs.length || lengths.length || preview()" class="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-semibold text-white" x-cloak>&#10003;</span>
+          <svg class="h-3.5 w-3.5 transition-transform" :class="show ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </button>
+
+        <div class="ml-auto flex items-center gap-2">
+          <label class="hidden">{{ lf.DELETE }}</label>
+          <button type="button" onclick="removeLine(this)"
+                  class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sizes & drawing editor -->
+  <div x-show="show" x-cloak class="grid gap-5 border-t border-slate-100 bg-slate-50/60 p-4 lg:grid-cols-2">
+    <div class="space-y-4">
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Size specs</span>
+          <button type="button" @click="addSpec()" class="rounded-md px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-50">+ Add spec</button>
+        </div>
+        <template x-for="(row, i) in specs" :key="'s'+i">
+          <div class="mb-1.5 flex gap-2">
+            <input type="text" x-model="row.label" @input="persist()" placeholder="Label (e.g. Girth)"
+                   class="w-1/3 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <input type="text" x-model="row.value" @input="persist()" placeholder="Value (e.g. 24&quot;)"
+                   class="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <button type="button" @click="rmSpec(i)" class="px-1.5 text-slate-400 hover:text-rose-600" title="Remove">&times;</button>
+          </div>
+        </template>
+        <p x-show="!specs.length" class="text-xs text-slate-400">No size specs yet.</p>
+      </div>
+
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Length schedule (pcs &times; length)</span>
+          <button type="button" @click="addLen()" class="rounded-md px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-50">+ Add row</button>
+        </div>
+        <template x-for="(row, i) in lengths" :key="'l'+i">
+          <div class="mb-1.5 flex items-center gap-2">
+            <input type="number" step="any" x-model="row.pcs" @input="persist()" placeholder="Pcs"
+                   class="w-20 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <span class="text-slate-400">&times;</span>
+            <input type="number" step="any" x-model="row.len" @input="persist()" placeholder="Length (m)"
+                   class="w-28 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <span class="text-xs text-slate-500">= <span class="font-medium" x-text="((parseFloat(row.pcs)||0)*(parseFloat(row.len)||0)).toFixed(2)"></span></span>
+            <button type="button" @click="rmLen(i)" class="ml-auto px-1.5 text-slate-400 hover:text-rose-600" title="Remove">&times;</button>
+          </div>
+        </template>
+        <div x-show="lengths.length" class="mt-2 flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs">
+          <span class="font-semibold text-slate-700">Total length: <span x-text="total().toFixed(2)"></span></span>
+          <button type="button" @click="useTotalAsQty()" class="rounded-md px-2 py-0.5 font-medium text-blue-600 hover:bg-blue-50">Use as quantity</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Reference drawing</span>
+      <div>
+        <label class="block text-[11px] text-slate-400">From library</label>
+        <div class="flex items-center gap-2">
+          <div class="flex-1">{{ lf.standard_drawing }}</div>
+          <button type="button" @click="window.__drawingPickTarget = $refs.drawingField"
+                  hx-get="{% url 'drawing_quick_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+                  class="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium hover:bg-slate-50">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-3.5 w-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            New
+          </button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-[11px] text-slate-400">Or upload a custom sketch</label>
+        {{ lf.custom_image }}
+      </div>
+
+      <!-- Generate a drawing from bend segments (no image needed) -->
+      <div class="rounded-lg border border-slate-200 bg-white p-2.5">
+        <div class="mb-2 flex items-center justify-between">
+          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Generate a drawing (bends)</span>
+          <span class="text-[10px] text-slate-400">no image needed</span>
+        </div>
+        <div class="mb-2 flex items-center gap-2">
+          <select @change="applyTemplate($event.target.value); $event.target.value=''"
+                  class="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <option value="">Start from a shape&hellip;</option>
+            <optgroup label="Foremost accessories (inches)">
+              <option value="endflash">End Flashing (24&quot;)</option>
+              <option value="boxgutter">Box Gutter (36&quot;)</option>
+              <option value="wallflash">Wall Flashing</option>
+            </optgroup>
+            <optgroup label="Generic (mm)">
+              <option value="straight">Straight</option>
+              <option value="corner">L / Corner flashing</option>
+              <option value="zflash">Z-flashing</option>
+              <option value="ugutter">U / Box gutter</option>
+              <option value="ridge">Ridge cap</option>
+            </optgroup>
+          </select>
+          <select x-model="profile.unit" @change="persist()"
+                  class="flex-none rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <option value="mm">mm</option>
+            <option value="in">inch</option>
+          </select>
+          <button type="button" @click="addSeg()" class="whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50">+ Segment</button>
+        </div>
+        <template x-for="(s, i) in profile.segments" :key="'seg'+i">
+          <div class="mb-1.5 flex items-center gap-1.5">
+            <span class="w-4 flex-none text-center text-[11px] text-slate-400" x-text="i+1"></span>
+            <input type="number" step="any" x-model="s.len" @input="persist()" placeholder="length"
+                   class="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <span class="text-[11px] text-slate-400" x-text="profile.unit === 'in' ? 'in' : 'mm'"></span>
+            <template x-if="i < profile.segments.length - 1">
+              <span class="flex items-center gap-1">
+                <span class="text-[11px] text-slate-400">bend</span>
+                <input type="number" step="any" x-model="s.ang" @input="persist()" placeholder="90"
+                       class="w-12 rounded-lg border border-slate-200 px-1.5 py-1 text-xs focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+                <span class="text-[11px] text-slate-400">&deg;</span>
+                <button type="button" @click="s.dir = (parseFloat(s.dir) == -1 ? 1 : -1); persist()"
+                        class="rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-50" title="Flip bend direction"
+                        x-text="parseFloat(s.dir) == -1 ? '\u21B7' : '\u21B6'"></button>
+              </span>
+            </template>
+            <button type="button" @click="rmSeg(i)" class="ml-auto px-1 text-slate-400 hover:text-rose-600" title="Remove segment">&times;</button>
+          </div>
+        </template>
+        <p x-show="!profile.segments.length" class="text-[11px] text-slate-400">Pick a shape or add segments to draw a cross-section.</p>
+        <div x-show="hasProfile()" x-cloak class="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
+          <span class="font-semibold text-slate-700">Girth: <span x-text="girthLabel()"></span></span>
+          <div class="flex gap-1.5">
+            <button type="button" @click="rotate()" class="rounded-md px-2 py-0.5 font-medium text-slate-600 hover:bg-slate-100">Rotate</button>
+            <button type="button" @click="clearProfile()" class="rounded-md px-2 py-0.5 font-medium text-rose-600 hover:bg-rose-50">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unified preview: uploaded image > library drawing > generated profile -->
+      <div class="flex h-36 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white p-1">
+        <template x-if="preview()"><img :src="preview()" class="max-h-full object-contain" alt="drawing preview"></template>
+        <template x-if="!preview() && hasProfile()"><div class="h-full w-full" x-html="profileSvg()"></div></template>
+        <template x-if="!preview() && !hasProfile()"><span class="text-xs text-slate-400">No drawing yet</span></template>
+      </div>
+    </div>
+  </div>
+</div>

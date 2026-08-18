@@ -1,0 +1,86 @@
+{% extends 'print/base_print.html' %}
+{% block doc_title %}{{ delivery.number }} - Delivery Receipt{% endblock %}
+{% block document %}
+<div class="doc-frame">
+  <table style="border-bottom:1.5px solid #111827;">
+    <tr>
+      <td style="width:66%; vertical-align:middle;">{% include 'print/_letterhead.html' %}</td>
+      <td style="width:34%; vertical-align:top; padding:8px 10px;">
+        <div class="doc-title-right" style="font-size:20px;">DELIVERY RECEIPT</div>
+        <div class="num" style="margin-top:8px;"><span class="k">No.</span> <strong>{{ delivery.number }}</strong></div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="meta" style="border-bottom:1.5px solid #111827;">
+    <tr>
+      <td class="k" style="width:16%;">Delivered To:</td>
+      <td style="width:50%; border-bottom:1px solid #9ca3af;">{{ delivery.customer.name }}</td>
+      <td class="k" style="width:12%;">Date:</td>
+      <td style="width:22%; border-bottom:1px solid #9ca3af;">{% if delivery.scheduled_for %}{{ delivery.scheduled_for|date:'M d, Y' }}{% else %}{{ delivery.created_at|date:'M d, Y' }}{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="k">TIN:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ delivery.customer.tin|default:'' }}</td>
+      <td class="k">PO / JO No.:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ delivery.job_order.number|default:'' }}</td>
+    </tr>
+    <tr>
+      <td class="k">Address:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ delivery.delivery_address|default:delivery.customer.address }}</td>
+      <td class="k">Terms:</td>
+      <td style="border-bottom:1px solid #9ca3af;">{{ delivery.scheduled_for|date:'g:i A'|default:'' }}</td>
+    </tr>
+  </table>
+
+  <table class="lines">
+    <thead>
+      <tr>
+        <th style="width:12%;" class="num">Qty</th>
+        <th style="width:12%;">Unit</th>
+        <th>Articles</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lines %}
+      <tr>
+        <td class="num">{{ l.quantity|floatformat:2 }}</td>
+        <td>{{ l.uom }}</td>
+        <td>{{ l.description }}{% if l.fg_lot %} <span class="sub">(Lot {{ l.fg_lot.lot_number }})</span>{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="center muted" style="padding:16px;">No items.</td></tr>
+      {% endfor %}
+      {% for i in filler %}
+      <tr><td>&nbsp;</td><td></td><td></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if delivery.notes %}
+  <div class="center" style="font-weight:800; letter-spacing:1px; padding:8px; text-transform:uppercase;">{{ delivery.notes }}</div>
+  {% endif %}
+
+  <table class="lines" style="margin-top:6px;">
+    <tr>
+      <td style="width:50%;"><span class="k">Driver:</span> {{ delivery.driver|default:'' }}</td>
+      <td style="width:50%;"><span class="k">Time In:</span></td>
+    </tr>
+    <tr>
+      <td><span class="k">Truck Plate No.:</span> {{ delivery.truck|default:'' }}</td>
+      <td><span class="k">Time Out:</span></td>
+    </tr>
+  </table>
+
+  <table class="lines" style="margin-top:6px;">
+    <tr>
+      <td class="center" style="height:52px; vertical-align:bottom;"><div class="k">Prepared By</div></td>
+      <td class="center" style="vertical-align:bottom;"><div class="k">Checked By</div></td>
+      <td class="center" style="vertical-align:bottom;"><div class="k">Dispatch By</div></td>
+      <td class="center" style="vertical-align:bottom;"><div class="k">Received By</div></td>
+    </tr>
+  </table>
+
+  <div class="terms center" style="padding:6px;">*THIS DOCUMENT IS NOT VALID FOR CLAIMING INPUT TAXES</div>
+</div>
+{% endblock %}

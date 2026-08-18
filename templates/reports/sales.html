@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  .overflow-x-auto { overflow: visible !important; }
+  table .sticky { position: static !important; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  section { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  canvas { max-height: 240px !important; }
+}
+</style>
+{% include 'reports/_tabs.html' %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">{{ title }} &middot; {{ year }}</h1>
+    <p class="mt-1 text-sm text-slate-500">Booked sales, collections, pipeline and forecast &mdash; the full commercial picture.</p>
+  </div>
+  <div class="flex items-center gap-2 print:hidden">
+    <form method="get" class="flex items-center gap-2">
+      <label class="text-xs font-medium text-slate-500">Year</label>
+      <select name="year" onchange="this.form.submit()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    <button type="button" onclick="window.print()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / PDF</button>
+  </div>
+</div>
+
+{# --- KPI cards --------------------------------------------------------- #}
+<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+  {% for card in cards %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="text-xs font-medium text-slate-500">{{ card.label }}</div>
+      <div class="mt-2 text-2xl font-semibold
+        {% if card.tone == 'red' %}text-rose-600{% elif card.tone == 'green' %}text-emerald-600{% elif card.tone == 'yellow' %}text-amber-600{% elif card.tone == 'blue' %}text-blue-600{% else %}text-slate-900{% endif %}">{{ card.value }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+{# --- Charts ------------------------------------------------------------ #}
+<div class="mb-8 grid gap-4 lg:grid-cols-2">
+  <div class="rounded-xl border border-slate-200 bg-white p-4">
+    <h3 class="mb-1 text-sm font-semibold">Invoiced vs Collected &amp; Forecast</h3>
+    <p class="mb-3 text-xs text-slate-500">Green = booked, blue = cash collected, dashed = projected trend.</p>
+    <canvas id="salesChart" height="150"></canvas>
+  </div>
+  <div class="rounded-xl border border-slate-200 bg-white p-4">
+    <h3 class="mb-1 text-sm font-semibold">Quotation Pipeline by Month</h3>
+    <p class="mb-3 text-xs text-slate-500">Incoming demand &mdash; a leading indicator of future sales.</p>
+    <canvas id="pipelineChart" height="150"></canvas>
+  </div>
+</div>
+
+{# --- Monthly performance ---------------------------------------------- #}
+<section class="mb-8">
+  <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Monthly Performance</h2>
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full border-collapse text-right text-sm">
+      <thead>
+        <tr class="bg-slate-800 text-white">
+          <th class="px-4 py-2 text-left font-semibold uppercase tracking-wide">Month</th>
+          <th class="px-4 py-2 font-semibold">Quotes</th>
+          <th class="px-4 py-2 font-semibold">Quote Value</th>
+          <th class="px-4 py-2 font-semibold">Invoices</th>
+          <th class="px-4 py-2 font-semibold">Invoiced</th>
+          <th class="px-4 py-2 font-semibold">Collected</th>
+          <th class="px-4 py-2 font-semibold">Win %</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in monthly_rows %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-1.5 text-left font-medium text-slate-800">{{ r.month }}</td>
+          <td class="px-4 py-1.5 tabular-nums text-slate-600">{{ r.q_count|report_num }}</td>
+          <td class="px-4 py-1.5 tabular-nums text-slate-600">{{ r.q_val|money }}</td>
+          <td class="px-4 py-1.5 tabular-nums text-slate-600">{{ r.inv_count|report_num }}</td>
+          <td class="px-4 py-1.5 tabular-nums font-medium text-slate-900">{{ r.inv_val|money }}</td>
+          <td class="px-4 py-1.5 tabular-nums text-emerald-700">{{ r.collected|money }}</td>
+          <td class="px-4 py-1.5 tabular-nums text-slate-600">{{ r.conv }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold text-slate-900">
+          <td class="px-4 py-2 text-left uppercase">Total</td>
+          <td class="px-4 py-2 tabular-nums">{{ monthly_total.q_count|report_num }}</td>
+          <td class="px-4 py-2 tabular-nums">{{ monthly_total.q_val|money }}</td>
+          <td class="px-4 py-2 tabular-nums">{{ monthly_total.inv_count|report_num }}</td>
+          <td class="px-4 py-2 tabular-nums">{{ monthly_total.inv_val|money }}</td>
+          <td class="px-4 py-2 tabular-nums">{{ monthly_total.collected|money }}</td>
+          <td class="px-4 py-2 tabular-nums">{{ monthly_total.conv }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# --- Funnel + Accounts Receivable ------------------------------------- #}
+<div class="mb-8 grid gap-4 lg:grid-cols-2">
+  <section class="rounded-xl border border-slate-200 bg-white p-5">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Quotation Funnel &middot; {{ year }}</h2>
+    <div class="space-y-2.5">
+      {% for f in funnel_rows %}
+      <div>
+        <div class="mb-1 flex items-center justify-between text-xs">
+          <span class="font-medium text-slate-700">{{ f.label }}</span>
+          <span class="tabular-nums text-slate-500">{{ f.count }} &middot; {{ f.value|money }}</span>
+        </div>
+        <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+          <div class="h-full rounded-full
+            {% if f.status == 'accepted' %}bg-emerald-500{% elif f.status == 'rejected' or f.status == 'expired' or f.status == 'cancelled' %}bg-rose-400{% elif f.status == 'draft' %}bg-slate-300{% else %}bg-blue-500{% endif %}"
+            style="width: {{ f.pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="rounded-xl border border-slate-200 bg-white p-5">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Accounts Receivable</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <div class="text-xs text-slate-500">Outstanding ({{ ar.count }} invoices)</div>
+        <div class="mt-1 text-2xl font-semibold text-slate-900">{{ ar.outstanding|money }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500">Overdue</div>
+        <div class="mt-1 text-2xl font-semibold text-rose-600">{{ ar.overdue|money }}</div>
+      </div>
+    </div>
+    <div class="mt-5 grid grid-cols-4 gap-2 text-center">
+      <div class="rounded-lg bg-slate-50 p-2">
+        <div class="text-[11px] text-slate-500">Current</div>
+        <div class="mt-0.5 text-sm font-semibold text-slate-800 tabular-nums">{{ ar.aging.current|money }}</div>
+      </div>
+      <div class="rounded-lg bg-amber-50 p-2">
+        <div class="text-[11px] text-amber-700">1&ndash;30d</div>
+        <div class="mt-0.5 text-sm font-semibold text-amber-700 tabular-nums">{{ ar.aging.b1_30|money }}</div>
+      </div>
+      <div class="rounded-lg bg-orange-50 p-2">
+        <div class="text-[11px] text-orange-700">31&ndash;60d</div>
+        <div class="mt-0.5 text-sm font-semibold text-orange-700 tabular-nums">{{ ar.aging.b31_60|money }}</div>
+      </div>
+      <div class="rounded-lg bg-rose-50 p-2">
+        <div class="text-[11px] text-rose-700">60d+</div>
+        <div class="mt-0.5 text-sm font-semibold text-rose-700 tabular-nums">{{ ar.aging.b60p|money }}</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+{# --- Top outstanding invoices ----------------------------------------- #}
+{% if outstanding_rows %}
+<section class="mb-8">
+  <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Top Outstanding Invoices</h2>
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full divide-y divide-slate-100 text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <tr>
+          <th class="px-4 py-3">Invoice</th>
+          <th class="px-4 py-3">Customer</th>
+          <th class="px-4 py-3 text-right">Total</th>
+          <th class="px-4 py-3 text-right">Paid</th>
+          <th class="px-4 py-3 text-right">Balance</th>
+          <th class="px-4 py-3 text-right">Due</th>
+          <th class="px-4 py-3 text-right">Overdue</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in outstanding_rows %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 font-medium text-slate-800">{{ r.number }}</td>
+          <td class="px-4 py-2 text-slate-600">{{ r.customer }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-slate-600">{{ r.total|money }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-emerald-700">{{ r.paid|money }}</td>
+          <td class="px-4 py-2 text-right tabular-nums font-semibold text-slate-900">{{ r.balance|money }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ r.due|date:"M d, Y" }}</td>
+          <td class="px-4 py-2 text-right tabular-nums {% if r.overdue_days %}font-semibold text-rose-600{% else %}text-slate-400{% endif %}">
+            {% if r.overdue_days %}{{ r.overdue_days }}d{% else %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{# --- Customer / Salesperson breakdowns -------------------------------- #}
+<div class="mb-8 grid gap-4 lg:grid-cols-2">
+  <section class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Sales by Customer</h2>
+    <table class="min-w-full divide-y divide-slate-100 text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <tr><th class="px-4 py-2.5">Customer</th><th class="px-4 py-2.5 text-right">Inv</th><th class="px-4 py-2.5 text-right">Amount</th><th class="px-4 py-2.5 text-right">Share</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in cust_table %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 text-slate-700">{{ r.name }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ r.count }}</td>
+          <td class="px-4 py-2 text-right tabular-nums font-medium text-slate-900">{{ r.value|money }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ r.pct|floatformat:0 }}%</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">No invoiced sales yet for {{ year }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Salesperson Performance</h2>
+    <table class="min-w-full divide-y divide-slate-100 text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <tr><th class="px-4 py-2.5">Salesperson</th><th class="px-4 py-2.5 text-right">Quotes</th><th class="px-4 py-2.5 text-right">Quote Value</th><th class="px-4 py-2.5 text-right">Won</th><th class="px-4 py-2.5 text-right">Win %</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in person_table %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 text-slate-700">{{ r.name }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ r.q_count }}</td>
+          <td class="px-4 py-2 text-right tabular-nums font-medium text-slate-900">{{ r.q_val|money }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-emerald-700">{{ r.accepted }}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-slate-600">{{ r.win }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">No quotations yet for {{ year }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+{# --- Top products ----------------------------------------------------- #}
+<section class="mb-8 overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Top Products by Invoiced Value</h2>
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-2.5">Product</th><th class="px-4 py-2.5 text-right">Qty</th><th class="px-4 py-2.5 text-right">Value</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for r in product_table %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-4 py-2 text-slate-700">{{ r.name }}</td>
+        <td class="px-4 py-2 text-right tabular-nums text-slate-500">{{ r.qty|report_num }}</td>
+        <td class="px-4 py-2 text-right tabular-nums font-medium text-slate-900">{{ r.value|money }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="px-4 py-6 text-center text-slate-400">No product sales yet for {{ year }}.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{{ charts_json|json_script:"sales-charts-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  var el = document.getElementById('sales-charts-data');
+  if (!el || typeof Chart === 'undefined') return;
+  var data = JSON.parse(el.textContent);
+  var peso = function (v) { return v == null ? '' : '\u20b1' + Number(v).toLocaleString(undefined, {maximumFractionDigits: 0}); };
+
+  var s = document.getElementById('salesChart');
+  if (s) new Chart(s, {
+    type: 'line',
+    data: { labels: data.labels, datasets: [
+      { label: 'Invoiced', data: data.invoiced.actual, borderColor: '#059669',
+        backgroundColor: 'rgba(5,150,105,.12)', fill: true, tension: .3, pointRadius: 3 },
+      { label: 'Collected', data: data.collected, borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,.08)', fill: false, tension: .3, pointRadius: 2 },
+      { label: 'Forecast', data: data.invoiced.forecast, borderColor: '#94a3b8',
+        borderDash: [6, 4], tension: .3, pointRadius: 2, fill: false }
+    ]},
+    options: { responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + peso(c.parsed.y); } } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return peso(v); } } } } }
+  });
+
+  var p = document.getElementById('pipelineChart');
+  if (p) new Chart(p, {
+    type: 'bar',
+    data: { labels: data.labels, datasets: [
+      { label: 'Quotation value', data: data.pipeline, backgroundColor: '#f59e0b' }
+    ]},
+    options: { responsive: true,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: function (c) { return peso(c.parsed.y); } } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return peso(v); } } } } }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+<div class="grid gap-4 md:grid-cols-2">
+  {% for field in form %}
+    {% if field.name == 'roles' %}
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-slate-500">{{ field.label }}</label>
+        <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {% for checkbox in field %}
+            <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50 has-[:checked]:font-medium has-[:checked]:text-slate-900">
+              {{ checkbox.tag }}
+              <span>{{ checkbox.choice_label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        {% if field.errors %}<p class="mt-1 text-xs text-rose-600">{{ field.errors|striptags }}</p>{% endif %}
+      </div>
+    {% elif field.name == 'is_active' %}
+      <div class="flex items-center gap-2.5 md:col-span-2">
+        {{ field }}
+        <label class="text-sm font-medium text-slate-700">{{ field.label }}</label>
+        <span class="text-xs text-slate-400">&mdash; inactive users cannot sign in</span>
+      </div>
+    {% else %}
+      <div>
+        <label class="block text-xs font-medium text-slate-500">{{ field.label }}</label>
+        <div class="mt-1">{{ field }}</div>
+        {% if field.errors %}<p class="mt-1 text-xs text-rose-600">{{ field.errors|striptags }}</p>{% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}
+  <div>
+    <label class="block text-xs font-medium text-slate-500">Password {% if not creating %}(leave blank to keep){% endif %}</label>
+    <input type="password" name="password" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+  </div>
+</div>

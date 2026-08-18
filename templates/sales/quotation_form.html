@@ -1,0 +1,413 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl">
+  <div class="mb-6">
+    <a href="{% url 'quotation_list' %}" class="text-xs text-slate-400 hover:underline">Quotations</a>
+    <h1 class="text-2xl font-semibold tracking-tight">{{ title }}</h1>
+    <p class="mt-1 text-sm text-slate-500">Fill in the customer and terms, then add your line items. Use <span class="font-medium text-slate-600">Sizes &amp; drawing</span> on a line for length schedules and reference diagrams.</p>
+  </div>
+
+  <form id="quote-form" method="post" enctype="multipart/form-data" class="space-y-6 pb-28">
+    {% csrf_token %}
+    {{ standard_drawings|json_script:"drawing-map" }}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <!-- Customer & schedule -->
+    <section class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="mb-4 flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Customer &amp; schedule</h2>
+          <p class="text-xs text-slate-400">Who is this quotation for and when is it valid.</p>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-slate-600">{{ form.customer.label }} <span class="text-rose-500">*</span></label>
+          <div class="mt-1 flex items-center gap-2">
+            <div class="flex-1">{{ form.customer }}</div>
+            <button type="button" hx-get="{% url 'customer_quick_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+                    class="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              New customer
+            </button>
+          </div>
+          {% if form.customer.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.customer.errors|striptags }}</p>{% endif %}
+        </div>
+        {% include 'partials/field.html' with field=form.quote_date %}
+        {% include 'partials/field.html' with field=form.valid_until hint='Leave blank to use the default validity period.' %}
+        {% include 'partials/field.html' with field=form.salesperson wrap='sm:col-span-2' %}
+      </div>
+    </section>
+
+    <!-- Pricing & terms -->
+    <section class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="mb-4 flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 20.25z"/></svg>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Pricing &amp; terms</h2>
+          <p class="text-xs text-slate-400">Payment terms, tax and any header-level discount.</p>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {% include 'partials/field.html' with field=form.payment_term %}
+        {% include 'partials/field.html' with field=form.tax_code %}
+        {% include 'partials/field.html' with field=form.price_list %}
+        {% include 'partials/field.html' with field=form.discount hint='Applied to the whole quotation.' %}
+      </div>
+    </section>
+
+    <!-- Delivery & reference -->
+    <section class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="mb-4 flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Delivery &amp; reference</h2>
+          <p class="text-xs text-slate-400">Where it ships and any customer references.</p>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include 'partials/field.html' with field=form.project_site %}
+        {% include 'partials/field.html' with field=form.customer_ref %}
+        {% include 'partials/field.html' with field=form.delivery_address wrap='sm:col-span-2' %}
+        {% include 'partials/field.html' with field=form.notes wrap='sm:col-span-2' %}
+      </div>
+    </section>
+
+    <!-- Line items -->
+    <section class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="mb-4 flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Line items</h2>
+          <p class="text-xs text-slate-400">Add each product, quantity and price. Line totals update as you type.</p>
+        </div>
+      </div>
+
+      {{ formset.management_form }}
+      <div id="lines-wrap" class="space-y-3">
+        {% for lf in formset %}
+          {% include 'sales/_quotation_line.html' with lf=lf %}
+        {% endfor %}
+      </div>
+
+      <button type="button" onclick="addLine()"
+              class="mt-4 inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:border-slate-400 hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Add line item
+      </button>
+
+      <!-- hidden blank line used by "Add line item" -->
+      <template id="empty-line-template">{% include 'sales/_quotation_line.html' with lf=formset.empty_form %}</template>
+    </section>
+
+    <!-- Totals -->
+    <section class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="ml-auto w-full max-w-sm space-y-2 text-sm">
+        <div class="flex items-center justify-between text-slate-600"><span>Items subtotal</span><span id="sum-subtotal" class="font-medium text-slate-800">0.00</span></div>
+        <div class="flex items-center justify-between text-slate-600"><span>Less discount</span><span id="sum-discount" class="font-medium text-slate-800">0.00</span></div>
+        <div class="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-900"><span>Estimated total</span><span id="sum-total">0.00</span></div>
+        <p class="text-xs text-slate-400">VAT and the final grand total are calculated on save based on the selected tax code.</p>
+      </div>
+    </section>
+
+    <!-- Sticky action bar -->
+    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-5xl items-center gap-3 px-8 py-3">
+        <div class="text-sm text-slate-500">Estimated total <span id="bar-total" class="ml-1 font-semibold text-slate-900">0.00</span></div>
+        <div class="ml-auto flex gap-3">
+          <a href="{% url 'quotation_list' %}" class="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50">Cancel</a>
+          <button class="rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-slate-800">Save quotation</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function lineEditor() {
+    return {
+      show: false, specs: [], lengths: [], stdUrl: '', customUrl: '',
+      profile: { start: 0, unit: 'mm', segments: [] },
+      init() {
+        let d = {};
+        try { d = JSON.parse(this.$refs.specsField.value || '{}'); } catch (e) {}
+        this.specs = d.specs || [];
+        this.lengths = d.lengths || [];
+        var p = d.profile;
+        this.profile = (p && Array.isArray(p.segments))
+          ? { start: parseFloat(p.start) || 0, unit: (p.unit === 'in' ? 'in' : 'mm'),
+              segments: p.segments.map(function (s) {
+                return { len: s.len, ang: (s.ang == null ? 90 : s.ang), dir: (parseFloat(s.dir) == -1 ? -1 : 1) };
+              }) }
+          : { start: 0, unit: 'mm', segments: [] };
+        if (this.specs.length || this.lengths.length || this.hasProfile()) this.show = true;
+        this.onDrawing();
+      },
+      // --- bend profile -------------------------------------------------
+      hasProfile() { return (this.profile.segments || []).some(function (s) { return parseFloat(s.len) > 0; }); },
+      profileGirth() {
+        var g = (this.profile.segments || []).reduce(function (a, s) { return a + (parseFloat(s.len) || 0); }, 0);
+        return (g === Math.round(g)) ? g : Math.round(g * 100) / 100;
+      },
+      girthLabel() { return this.profileGirth() + (this.profile.unit === 'in' ? '"' : ' mm'); },
+      addSeg() { this.profile.segments.push({ len: '', ang: 90, dir: 1 }); this.persist(); },
+      rmSeg(i) { this.profile.segments.splice(i, 1); this.persist(); },
+      rotate() { this.profile.start = ((parseFloat(this.profile.start) || 0) + 90) % 360; this.persist(); },
+      clearProfile() { this.profile = { start: 0, unit: this.profile.unit, segments: [] }; this.persist(); },
+      applyTemplate(name) {
+        var t = PROFILE_TEMPLATES[name];
+        if (!t) return;
+        this.profile = { start: t.start || 0, unit: (t.unit || 'mm'),
+                         segments: t.segments.map(function (s) { return { len: s.len, ang: s.ang, dir: s.dir }; }) };
+        this.show = true; this.persist();
+      },
+      profileSvg() { return renderProfileSvg(this.profile); },
+      drawingMap() {
+        try { return JSON.parse(document.getElementById('drawing-map').textContent || '{}'); }
+        catch (e) { return {}; }
+      },
+      onDrawing() { this.stdUrl = this.drawingMap()[this.$refs.drawingField.value] || ''; },
+      onImage(e) {
+        const f = e.target.files && e.target.files[0];
+        if (!f) { this.customUrl = ''; return; }
+        const r = new FileReader();
+        r.onload = ev => this.customUrl = ev.target.result;
+        r.readAsDataURL(f);
+      },
+      preview() { return this.customUrl || this.stdUrl; },
+      total() { return this.lengths.reduce((s, r) => s + (parseFloat(r.pcs) || 0) * (parseFloat(r.len) || 0), 0); },
+      persist() {
+        let d = {};
+        try { d = JSON.parse(this.$refs.specsField.value || '{}'); } catch (e) {}
+        d.specs = this.specs.filter(r => r.label || r.value);
+        d.lengths = this.lengths.filter(r => r.pcs || r.len);
+        if (this.hasProfile()) {
+          d.profile = {
+            start: parseFloat(this.profile.start) || 0,
+            unit: (this.profile.unit === 'in' ? 'in' : 'mm'),
+            segments: this.profile.segments
+              .filter(function (s) { return parseFloat(s.len) > 0; })
+              .map(function (s) {
+                return { len: parseFloat(s.len) || 0, ang: parseFloat(s.ang) || 0, dir: (parseFloat(s.dir) == -1 ? -1 : 1) };
+              }),
+          };
+        } else { delete d.profile; }
+        this.$refs.specsField.value = JSON.stringify(d);
+      },
+      addSpec() { this.specs.push({ label: '', value: '' }); },
+      rmSpec(i) { this.specs.splice(i, 1); this.persist(); },
+      addLen() { this.lengths.push({ pcs: '', len: '' }); },
+      rmLen(i) { this.lengths.splice(i, 1); this.persist(); },
+      useTotalAsQty() {
+        if (this.$refs.qtyField) { this.$refs.qtyField.value = this.total().toFixed(2); recalcTotals(); }
+      },
+    };
+  }
+
+  // ---- Bend profile -> SVG (mirror of myApp/profile_render.py) ------------
+  // Company accessories are traced from the paper drawings (inches); the
+  // generic shapes are convenience starting points (mm).
+  var PROFILE_TEMPLATES = {
+    endflash:  { start: 20, unit: 'in', segments: [{ len: 1.5, ang: 20, dir: -1 }, { len: 11, ang: 90, dir: -1 }, { len: 3, ang: 45, dir: -1 }, { len: 8, ang: 45, dir: -1 }, { len: 0.5, ang: 0, dir: 1 }] },
+    boxgutter: { start: 0, unit: 'in', segments: [{ len: 1, ang: 45, dir: -1 }, { len: 3.5, ang: 45, dir: -1 }, { len: 10, ang: 90, dir: 1 }, { len: 6, ang: 60, dir: 1 }, { len: 12, ang: 90, dir: 1 }, { len: 2.5, ang: 60, dir: -1 }, { len: 1, ang: 0, dir: 1 }] },
+    wallflash: { start: 90, unit: 'in', segments: [{ len: 1.5, ang: 90, dir: -1 }, { len: 2, ang: 90, dir: -1 }, { len: 6, ang: 90, dir: -1 }, { len: 1.5, ang: 0, dir: 1 }] },
+    straight:  { start: 0, unit: 'mm', segments: [{ len: 200, ang: 0, dir: 1 }] },
+    corner:    { start: 0, unit: 'mm', segments: [{ len: 50, ang: 90, dir: 1 }, { len: 150, ang: 0, dir: 1 }] },
+    zflash:    { start: 0, unit: 'mm', segments: [{ len: 40, ang: 90, dir: 1 }, { len: 120, ang: 90, dir: -1 }, { len: 40, ang: 0, dir: 1 }] },
+    ugutter:   { start: -90, unit: 'mm', segments: [{ len: 80, ang: 90, dir: 1 }, { len: 200, ang: 90, dir: 1 }, { len: 80, ang: 0, dir: 1 }] },
+    ridge:     { start: 60, unit: 'mm', segments: [{ len: 120, ang: 120, dir: -1 }, { len: 120, ang: 0, dir: 1 }] },
+  };
+  function fmtLen(n) { n = Math.round(parseFloat(n) * 100) / 100; return (n === Math.round(n)) ? String(Math.round(n)) : String(n); }
+  function renderProfileSvg(profile) {
+    var segs = (profile && profile.segments) || [];
+    var heading = parseFloat(profile && profile.start) || 0;
+    var x = 0, y = 0, pts = [[0, 0]], lines = [];
+    segs.forEach(function (s) {
+      var L = parseFloat(s.len) || 0;
+      if (L > 0) {
+        var rad = heading * Math.PI / 180;
+        var nx = x + L * Math.cos(rad), ny = y + L * Math.sin(rad);
+        pts.push([nx, ny]); lines.push([[x, y], [nx, ny], L]); x = nx; y = ny;
+      }
+      var dir = parseFloat(s.dir) || 1;
+      heading += (dir || 1) * (parseFloat(s.ang) || 0);
+    });
+    if (pts.length < 2) return '';
+    var fp = pts.map(function (p) { return [p[0], -p[1]]; });
+    var xs = fp.map(function (p) { return p[0]; }), ys = fp.map(function (p) { return p[1]; });
+    var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs);
+    var miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
+    var w = (maxx - minx) || 1, h = (maxy - miny) || 1, span = Math.max(w, h);
+    var pad = span * 0.16, sw = span / 100, fs = span / 12, off = span * 0.09;
+    var d = fp.map(function (p, i) { return (i ? 'L' : 'M') + ' ' + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' +
+      (minx - pad).toFixed(1) + ' ' + (miny - pad).toFixed(1) + ' ' +
+      (w + 2 * pad).toFixed(1) + ' ' + (h + 2 * pad).toFixed(1) +
+      '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;">';
+    svg += '<path d="' + d + '" fill="none" stroke="#0f172a" stroke-width="' + sw.toFixed(2) +
+      '" stroke-linejoin="round" stroke-linecap="round"/>';
+    [fp[0], fp[fp.length - 1]].forEach(function (p) {
+      svg += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (sw * 1.4).toFixed(2) + '" fill="#0f172a"/>';
+    });
+    lines.forEach(function (seg) {
+      var a = [seg[0][0], -seg[0][1]], b = [seg[1][0], -seg[1][1]], L = seg[2];
+      var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1], n = Math.hypot(dx, dy) || 1;
+      var tx = mx + (-dy / n) * off, ty = my + (dx / n) * off;
+      svg += '<text x="' + tx.toFixed(1) + '" y="' + ty.toFixed(1) + '" font-size="' + fs.toFixed(1) +
+        '" fill="#475569" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">' + fmtLen(L) + '</text>';
+    });
+    var total = lines.reduce(function (a, s) { return a + s[2]; }, 0);
+    var cx = (minx + maxx) / 2, cy = (miny + maxy) / 2, r = span / 8;
+    svg += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(2) +
+      '" fill="#ffffff" fill-opacity="0.82" stroke="#0f172a" stroke-width="' + sw.toFixed(2) + '"/>';
+    svg += '<text x="' + cx.toFixed(1) + '" y="' + cy.toFixed(1) + '" font-size="' + (fs * 1.1).toFixed(2) +
+      '" fill="#0f172a" text-anchor="middle" dominant-baseline="central" font-weight="bold" font-family="sans-serif">' + fmtLen(total) + '</text>';
+    svg += '</svg>';
+    return svg;
+  }
+
+  // ---- Live totals + line management -------------------------------------
+  function money(n) {
+    return (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fieldVal(row, suffix) {
+    var el = row.querySelector('[name$="' + suffix + '"]');
+    return el ? el.value : '';
+  }
+  function activeRows() {
+    return Array.prototype.filter.call(
+      document.querySelectorAll('#lines-wrap [data-line]'),
+      function (r) {
+        if (r.style.display === 'none') return false;
+        var del = r.querySelector('[name$="-DELETE"]');
+        return !(del && del.checked);
+      });
+  }
+  function recalcTotals() {
+    var subtotal = 0;
+    activeRows().forEach(function (row) {
+      var q = parseFloat(fieldVal(row, '-quantity')) || 0;
+      var p = parseFloat(fieldVal(row, '-unit_price')) || 0;
+      var d = parseFloat(fieldVal(row, '-discount')) || 0;
+      var lt = q * p - d;
+      var cell = row.querySelector('[data-line-total]');
+      if (cell) cell.textContent = money(lt);
+      subtotal += lt;
+    });
+    var hd = parseFloat((document.getElementById('id_discount') || {}).value) || 0;
+    var est = subtotal - hd;
+    var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+    set('sum-subtotal', money(subtotal));
+    set('sum-discount', money(hd));
+    set('sum-total', money(est));
+    set('bar-total', money(est));
+  }
+  function renumber() {
+    var n = 0;
+    document.querySelectorAll('#lines-wrap [data-line]').forEach(function (row) {
+      if (row.style.display === 'none') return;
+      var del = row.querySelector('[name$="-DELETE"]');
+      if (del && del.checked) return;
+      n += 1;
+      var badge = row.querySelector('[data-line-no]');
+      if (badge) badge.textContent = n;
+    });
+  }
+  function addLine() {
+    var tpl = document.getElementById('empty-line-template').innerHTML;
+    var totalForms = document.getElementById('id_lines-TOTAL_FORMS');
+    var idx = parseInt(totalForms.value, 10);
+    var node = document.createElement('div');
+    node.innerHTML = tpl.replace(/__prefix__/g, idx).trim();
+    var row = node.firstElementChild;
+    document.getElementById('lines-wrap').appendChild(row);
+    totalForms.value = idx + 1;
+    if (window.Alpine && Alpine.initTree) Alpine.initTree(row);
+    if (window.initSearchSelects) initSearchSelects(row);
+    renumber(); recalcTotals();
+    var firstItem = row.querySelector('[name$="-item"]');
+    if (firstItem && firstItem.tomselect) firstItem.tomselect.focus();
+  }
+  function removeLine(btn) {
+    var row = btn.closest('[data-line]');
+    var del = row.querySelector('[name$="-DELETE"]');
+    if (del) {
+      del.checked = true;              // existing line -> mark for deletion
+    } else {
+      row.querySelectorAll('input, select, textarea').forEach(function (el) {
+        if (!el.name) return;
+        if (el.tomselect) el.tomselect.clear();
+        else if (el.type === 'checkbox') el.checked = false;
+        else el.value = el.name.slice(-11) === '-specs_json' ? '{}' : '';
+      });
+    }
+    row.style.display = 'none';
+    renumber(); recalcTotals();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    renumber(); recalcTotals();
+    var form = document.getElementById('quote-form');
+    if (form) form.addEventListener('input', function (e) {
+      var name = e.target.name || '';
+      if (/-(quantity|unit_price|discount)$/.test(name) || e.target.id === 'id_discount') {
+        recalcTotals();
+      }
+    });
+  });
+
+  document.body.addEventListener('drawingCreated', function (e) {
+    var d = e.detail || {};
+    try {
+      var el = document.getElementById('drawing-map');
+      var m = JSON.parse(el.textContent || '{}');
+      m[d.id] = d.url;
+      el.textContent = JSON.stringify(m);
+    } catch (err) {}
+    document.querySelectorAll('select[name$="-standard_drawing"]').forEach(function (sel) {
+      if (sel.tomselect) sel.tomselect.addOption({ value: String(d.id), text: d.name });
+      else sel.add(new Option(d.name, d.id));
+    });
+    var target = window.__drawingPickTarget;
+    if (target) {
+      if (target.tomselect) target.tomselect.addItem(String(d.id));
+      else { target.value = d.id; target.dispatchEvent(new Event('change')); }
+      window.__drawingPickTarget = null;
+    }
+    var root = document.getElementById('modal-root');
+    if (root) root.innerHTML = '';
+  });
+
+  document.body.addEventListener('customerCreated', function (e) {
+    var data = e.detail || {};
+    var select = document.getElementById('id_customer');
+    if (select && data.id) {
+      if (select.tomselect) {
+        select.tomselect.addOption({ value: data.id, text: data.name });
+        select.tomselect.addItem(data.id);
+      } else {
+        select.add(new Option(data.name, data.id, true, true));
+        select.dispatchEvent(new Event('change'));
+      }
+    }
+    var root = document.getElementById('modal-root');
+    if (root) root.innerHTML = '';
+  });
+</script>
+{% endblock %}

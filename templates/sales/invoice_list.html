@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}Invoices{% endblock %}
+{% block content %}
+<div class="mb-6"><h1 class="text-2xl font-semibold tracking-tight">Invoices</h1></div>
+
+<form method="get" class="mb-4 flex flex-wrap gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search number or customer"
+         class="w-64 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none">
+  <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+    <option value="">All statuses</option>
+    {% for value, label in statuses %}<option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">Filter</button>
+</form>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Number</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Date</th><th class="px-4 py-3">Total</th><th class="px-4 py-3">Payment</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Last follow-up</th><th class="px-4 py-3"></th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for inv in page_obj %}
+        <tr class="cursor-pointer hover:bg-slate-50"
+            hx-get="{% url 'invoice_detail' inv.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+          <td class="px-4 py-3 font-medium text-slate-900">{{ inv.number }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ inv.customer.name }}</td>
+          <td class="px-4 py-3 text-slate-500">{{ inv.invoice_date }}</td>
+          <td class="px-4 py-3">{{ inv.total|floatformat:2 }}</td>
+          <td class="px-4 py-3">{% include 'partials/badge.html' with status=inv.payment_state label=inv.get_payment_state_display %}</td>
+          <td class="px-4 py-3">{% include 'partials/badge.html' with status=inv.status label=inv.get_status_display %}</td>
+          <td class="px-4 py-3">
+            {% if inv.last_note %}
+              <div class="flex items-center gap-2">
+                {% include 'partials/badge.html' with status=inv.last_note.kind label=inv.last_note.get_kind_display %}
+                <span class="text-xs text-slate-400">{{ inv.last_note.created_at|timesince }} ago</span>
+              </div>
+              <div class="mt-0.5 max-w-[16rem] truncate text-xs text-slate-500" title="{{ inv.last_note.body }}">{{ inv.last_note.body }}</div>
+            {% else %}
+              <span class="text-xs text-slate-300">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-right"><a href="{% url 'invoice_print' inv.pk %}" target="_blank" onclick="event.stopPropagation()" title="Print" class="inline-flex text-slate-400 hover:text-slate-700">{% icon 'file' %}</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="8" class="px-4 py-10 text-center text-slate-400">No invoices found.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'partials/pagination.html' %}
+{% endblock %}

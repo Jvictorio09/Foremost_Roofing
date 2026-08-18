@@ -1,0 +1,27 @@
+{% load core_tags %}
+{% if q|length < 2 %}
+  <div class="px-4 py-6 text-center text-xs text-slate-400">Type at least 2 characters to search…</div>
+{% elif groups %}
+  <div class="max-h-[70vh] divide-y divide-slate-100 overflow-y-auto">
+    {% for group in groups %}
+      <div class="py-1">
+        <div class="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{{ group.label }}</div>
+        {% for row in group.rows %}
+          <a hx-get="{{ row.href }}" hx-target="#modal-root" hx-swap="innerHTML"
+             @click="open = false"
+             class="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 hover:bg-slate-50">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-medium text-slate-900">{{ row.title }}</div>
+              {% if row.subtitle %}<div class="truncate text-xs text-slate-500">{{ row.subtitle }}</div>{% endif %}
+            </div>
+            {% if row.status %}
+              <div class="flex-none">{% include 'partials/badge.html' with status=row.status label=row.status_label %}</div>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="px-4 py-6 text-center text-xs text-slate-400">No matches for &ldquo;{{ q }}&rdquo;.</div>
+{% endif %}

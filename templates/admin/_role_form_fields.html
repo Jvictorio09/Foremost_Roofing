@@ -1,0 +1,18 @@
+<div class="grid gap-4 md:grid-cols-2">
+  <div><label class="block text-xs font-medium text-slate-500">{{ form.name.label }}</label><div class="mt-1">{{ form.name }}</div></div>
+  <div><label class="block text-xs font-medium text-slate-500">{{ form.description.label }}</label><div class="mt-1">{{ form.description }}</div></div>
+</div>
+<div class="mt-4">
+  <label class="block text-xs font-medium text-slate-500">{{ form.permissions.label }}</label>
+  <div class="mt-2 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-3">
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {% for checkbox in form.permissions %}
+        <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 has-[:checked]:border-slate-900 has-[:checked]:bg-slate-900/5 has-[:checked]:font-medium has-[:checked]:text-slate-900">
+          {{ checkbox.tag }}
+          <span>{{ checkbox.choice_label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% if form.permissions.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.permissions.errors|striptags }}</p>{% endif %}
+</div>

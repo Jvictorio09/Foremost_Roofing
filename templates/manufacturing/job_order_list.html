@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}Job Orders{% endblock %}
+{% block content %}
+<div class="mb-6"><h1 class="text-2xl font-semibold tracking-tight">Job Orders</h1></div>
+
+<form method="get" class="mb-4 flex flex-wrap gap-3">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search number or customer"
+         class="w-64 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none">
+  <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+    <option value="">All statuses</option>
+    {% for value, label in statuses %}<option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">Filter</button>
+</form>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Number</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Required</th><th class="px-4 py-3">Gates</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for jo in page_obj %}
+        <tr class="cursor-pointer hover:bg-slate-50"
+            hx-get="{% url 'job_order_detail' jo.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+          <td class="px-4 py-3 font-medium text-slate-900">{{ jo.number }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ jo.customer.name }}</td>
+          <td class="px-4 py-3 text-slate-500">{{ jo.required_date|default:'-' }}</td>
+          <td class="px-4 py-3 text-xs">
+            {% if jo.drawing_pending %}<span class="mr-1 rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">drawing</span>{% endif %}
+            {% if jo.credit_hold %}<span class="mr-1 rounded bg-rose-50 px-1.5 py-0.5 text-rose-700">credit</span>{% endif %}
+            {% if jo.material_short %}<span class="rounded bg-rose-50 px-1.5 py-0.5 text-rose-700">material</span>{% endif %}
+          </td>
+          <td class="px-4 py-3">{% include 'partials/badge.html' with status=jo.status label=jo.get_status_display %}</td>
+          <td class="px-4 py-3 text-right"><a href="{% url 'job_order_print' jo.pk %}" target="_blank" onclick="event.stopPropagation()" title="Print" class="inline-flex text-slate-400 hover:text-slate-700">{% icon 'file' %}</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">No job orders found.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'partials/pagination.html' %}
+{% endblock %}

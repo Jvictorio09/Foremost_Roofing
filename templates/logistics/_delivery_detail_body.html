@@ -1,0 +1,86 @@
+{% load core_tags %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3">
+      <h1 class="text-2xl font-semibold tracking-tight">{{ delivery.number }}</h1>
+      {% include 'partials/badge.html' with status=delivery.status label=delivery.get_status_display %}
+    </div>
+    <p class="mt-1 text-sm text-slate-500">{{ delivery.customer.name }}
+      {% if delivery.job_order %}&middot; <a href="{% url 'job_order_detail' delivery.job_order.pk %}" hx-get="{% url 'job_order_detail' delivery.job_order.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-blue-600 hover:underline">{{ delivery.job_order.number }}</a>{% endif %}</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'delivery_print' delivery.pk %}" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">{% icon 'file' %} Print DR</a>
+    {% can user 'delivery.dispatch' as may_dispatch %}
+    {% if may_dispatch and delivery.status == S.SCHEDULED %}
+      <form method="post" action="{% url 'delivery_dispatch' delivery.pk %}">{% csrf_token %}<button class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Dispatch</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="rounded-xl border border-slate-200 bg-white">
+      <div class="border-b border-slate-100 px-4 py-3"><h3 class="text-sm font-semibold">Items to Deliver</h3></div>
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500"><tr><th class="px-4 py-2">Item</th><th class="px-4 py-2">Lot</th><th class="px-4 py-2">Qty</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for l in lines %}<tr><td class="px-4 py-2">{{ l.description }}</td><td class="px-4 py-2 text-slate-500">{{ l.fg_lot.lot_number|default:'-' }}</td><td class="px-4 py-2">{{ l.quantity }} {{ l.uom }}</td></tr>{% empty %}<tr><td colspan="3" class="px-4 py-6 text-center text-slate-400">No items added yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% can user 'delivery.partial' as may_partial %}
+    {% if may_partial and delivery.status == S.SCHEDULED %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Add from Finished Goods (partial deliveries supported)</h3>
+      {% if lots %}
+      <form method="post" action="{% url 'delivery_add_line' delivery.pk %}" class="flex flex-wrap items-end gap-3">
+        {% csrf_token %}
+        <div><label class="block text-xs text-slate-500">FG Lot</label>
+          <select name="fg_lot" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            {% for lot in lots %}<option value="{{ lot.pk }}">{{ lot.lot_number }} — {{ lot.item }} (avail {{ lot.qty_available }})</option>{% endfor %}
+          </select>
+        </div>
+        <div><label class="block text-xs text-slate-500">Qty</label><input name="qty" type="number" step="0.01" class="w-28 rounded-lg border border-slate-200 px-3 py-2 text-sm"></div>
+        <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Add</button>
+      </form>
+      {% else %}<p class="text-sm text-slate-400">No available finished goods for this customer / job order.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% can user 'delivery.confirm' as may_confirm %}
+    {% if may_confirm and delivery.status == S.DISPATCHED %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Confirm Delivery (POD)</h3>
+      <form method="post" action="{% url 'delivery_confirm' delivery.pk %}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+        {% csrf_token %}
+        <div><label class="block text-xs text-slate-500">Received by</label><input name="received_by" class="rounded-lg border border-slate-200 px-3 py-2 text-sm"></div>
+        <div><label class="block text-xs text-slate-500">Proof photo</label><input type="file" name="image" class="text-sm"></div>
+        <button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Mark Delivered</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-6">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+      <h3 class="mb-3 text-sm font-semibold">Details</h3>
+      <dl class="space-y-2 text-slate-600">
+        <div class="flex justify-between"><dt class="text-slate-400">Truck</dt><dd>{{ delivery.truck|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Driver</dt><dd>{{ delivery.driver|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Scheduled</dt><dd>{{ delivery.scheduled_for|date:'M d, H:i'|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Received by</dt><dd>{{ delivery.received_by|default:'-' }}</dd></div>
+      </dl>
+      {% if delivery.delivery_address %}<p class="mt-3 border-t border-slate-100 pt-3 text-slate-500">{{ delivery.delivery_address }}</p>{% endif %}
+    </div>
+    {% if proofs %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Proof of Delivery</h3>
+      {% for p in proofs %}
+        <div class="text-sm text-slate-600">{{ p.received_by_name }} &middot; {{ p.signed_at|date:'M d, H:i' }}</div>
+        {% if p.image %}<img src="{{ p.image.url }}" class="mt-2 rounded-lg border border-slate-200">{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>

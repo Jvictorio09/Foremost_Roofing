@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Product Attributes{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'master_hub' %}" class="text-xs text-slate-400 hover:underline">Master Data</a>
+  <h1 class="text-2xl font-semibold tracking-tight">Product Attributes</h1>
+  <p class="mt-1 text-sm text-slate-500">Attribute definitions drive dynamic specs on quotes, invoices and job orders — no code changes needed to add a spec field.</p>
+</div>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Code</th><th class="px-4 py-3">Name</th><th class="px-4 py-3">Type</th><th class="px-4 py-3">UoM</th><th class="px-4 py-3">Affects</th><th class="px-4 py-3">Options</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for a in attributes %}
+        <tr>
+          <td class="px-4 py-3 font-mono text-xs text-slate-600">{{ a.code }}</td>
+          <td class="px-4 py-3 font-medium">{{ a.name }}</td>
+          <td class="px-4 py-3 text-slate-500">{{ a.get_data_type_display }}</td>
+          <td class="px-4 py-3 text-slate-500">{{ a.uom|default:'-' }}</td>
+          <td class="px-4 py-3 text-xs">
+            {% if a.affects_material %}<span class="mr-1 rounded bg-blue-50 px-1.5 py-0.5 text-blue-700">material</span>{% endif %}
+            {% if a.affects_price %}<span class="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">price</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-500">{% for o in a.options.all %}{{ o.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">No attributes defined.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Category Bindings</h2>
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500"><tr><th class="px-4 py-3">Category</th><th class="px-4 py-3">Attribute</th><th class="px-4 py-3">Required</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for b in bindings %}<tr><td class="px-4 py-3">{{ b.category.name }}</td><td class="px-4 py-3">{{ b.attribute.name }}</td><td class="px-4 py-3">{% if b.required %}Yes{% else %}No{% endif %}</td></tr>{% empty %}<tr><td colspan="3" class="px-4 py-6 text-center text-slate-400">No bindings.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% load core_tags %}
+{% with active=request.resolver_match.url_name %}
+<div class="mb-6 flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
+  {% can user 'report.sales' as may_sales %}
+  {% can user 'report.production' as may_prod %}
+  {% can user 'report.inventory' as may_inv %}
+  {% can user 'report.management' as may_mgmt %}
+
+  <a href="{% url 'report_hub' %}"
+     class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium {% if active == 'report_hub' %}border-slate-900 text-slate-900{% else %}border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700{% endif %}">Overview</a>
+
+  {% if may_sales %}<a href="{% url 'report_sales' %}"
+     class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium {% if active == 'report_sales' %}border-slate-900 text-slate-900{% else %}border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700{% endif %}">Sales</a>{% endif %}
+
+  {% if may_prod %}<a href="{% url 'report_production' %}"
+     class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium {% if active == 'report_production' %}border-slate-900 text-slate-900{% else %}border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700{% endif %}">Production</a>{% endif %}
+
+  {% if may_inv %}<a href="{% url 'report_inventory' %}"
+     class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium {% if active == 'report_inventory' %}border-slate-900 text-slate-900{% else %}border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700{% endif %}">Inventory</a>{% endif %}
+
+  {% if may_mgmt %}<a href="{% url 'report_management' %}"
+     class="-mb-px border-b-2 px-4 py-2.5 text-sm font-medium {% if active == 'report_management' %}border-slate-900 text-slate-900{% else %}border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700{% endif %}">Management</a>{% endif %}
+</div>
+{% endwith %}

@@ -1,0 +1,151 @@
+{% load core_tags %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3">
+      <h1 class="text-2xl font-semibold tracking-tight">{{ jo.number }}</h1>
+      {% include 'partials/badge.html' with status=jo.status label=jo.get_status_display %}
+    </div>
+    <p class="mt-1 text-sm text-slate-500">{{ jo.customer.name }}
+      {% if jo.invoice %}&middot; <a href="{% url 'invoice_detail' jo.invoice.pk %}" hx-get="{% url 'invoice_detail' jo.invoice.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-blue-600 hover:underline">{{ jo.invoice.number }}</a>{% endif %}
+      &middot; required {{ jo.required_date|default:'n/a' }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'job_order_print' jo.pk %}" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">{% icon 'file' %} Print</a>
+    {% can user 'job_order.release' as may_release %}
+    {% if may_release and jo.status == S.PENDING_RELEASE %}
+      <form method="post" action="{% url 'job_order_release' jo.pk %}">{% csrf_token %}
+        <button class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40" {% if jo.drawing_pending %}disabled title="Drawing not verified"{% endif %}>Release &amp; Reserve</button>
+      </form>
+    {% endif %}
+    {% can user 'production.start' as may_start %}
+    {% if may_start and jo.status == S.RELEASED or may_start and jo.status == S.IN_PROGRESS or may_start and jo.status == S.PARTIALLY_COMPLETE %}
+      <a href="{% url 'production_run_create' %}?job_order={{ jo.pk }}" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Start Production Run</a>
+    {% endif %}
+    {% can user 'job_order.cancel' as may_cancel %}
+    {% if may_cancel and jo.status != S.CANCELLED and jo.status != S.CLOSED %}
+      <form method="post" action="{% url 'job_order_cancel' jo.pk %}" onsubmit="return confirm('Cancel this job order and release reservations?')">{% csrf_token %}<button class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">Cancel</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if jo.drawing_pending or jo.credit_hold or jo.material_short %}
+<div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+  <strong>Release gates:</strong>
+  {% if jo.drawing_pending %} A required drawing is not yet verified.{% endif %}
+  {% if jo.credit_hold %} Credit / payment gate not satisfied.{% endif %}
+  {% if jo.material_short %} Estimated material is short of available stock.{% endif %}
+</div>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="rounded-xl border border-slate-200 bg-white">
+      <div class="border-b border-slate-100 px-4 py-3"><h3 class="text-sm font-semibold">Lines</h3></div>
+      <div class="divide-y divide-slate-100">
+        {% for l in lines %}
+        <div class="px-4 py-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-medium text-slate-800">{{ l.description }}</div>
+              <div class="mt-0.5 text-xs text-slate-500">Qty {{ l.quantity }} {{ l.uom }} &middot; produced {{ l.qty_produced }} &middot; delivered {{ l.qty_delivered }}
+                {% if l.requires_drawing %}&middot; <span class="text-amber-600">drawing required</span>{% endif %}</div>
+              {% if l.length_rows %}<div class="mt-0.5 text-xs text-slate-400">{% for r in l.length_rows %}{{ r.pcs }} pcs @ {{ r.len }}m{% if not forloop.last %}, {% endif %}{% endfor %}{% if l.length_total %} = {{ l.length_total|floatformat:2 }} {{ l.uom }}{% endif %}</div>{% endif %}
+              {% if l.spec_rows %}<div class="mt-0.5 text-xs text-slate-400">{% for r in l.spec_rows %}{{ r.label }}: {{ r.value }}{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}
+            </div>
+          </div>
+
+          {% if l.requirements.all %}
+            <div class="mt-2 text-xs text-slate-500">
+              Material est.: {% for r in l.requirements.all %}{{ r.item.code }} {{ r.estimated_qty }} {{ r.uom }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </div>
+          {% endif %}
+
+          {% if l.requires_drawing %}
+            <div class="mt-2 rounded-lg bg-slate-50 p-2">
+              <div class="mb-1 text-[11px] font-semibold uppercase text-slate-500">Drawings</div>
+              {% for d in l.drawings.all %}
+                <div class="flex items-center justify-between text-xs">
+                  <a href="{{ d.file.url }}" class="text-blue-600 hover:underline">rev {{ d.revision_no }}</a>
+                  {% include 'partials/badge.html' with status=d.status label=d.get_status_display %}
+                  {% can user 'drawing.verify' as may_verify %}
+                  {% if may_verify and d.status == 'submitted' %}
+                    <form method="post" action="{% url 'drawing_verify' d.pk %}" class="flex gap-1">{% csrf_token %}
+                      <button name="action" value="verify" class="rounded bg-emerald-600 px-2 py-0.5 text-white">Verify</button>
+                      <button name="action" value="reject" class="rounded bg-rose-600 px-2 py-0.5 text-white">Reject</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% empty %}<div class="text-xs text-slate-400">No drawing uploaded.</div>{% endfor %}
+              {% can user 'drawing.upload' as may_upload %}
+              {% if may_upload %}
+                <form method="post" action="{% url 'drawing_upload' l.pk %}" enctype="multipart/form-data" class="mt-2 flex items-center gap-2 text-xs">{% csrf_token %}
+                  <input type="file" name="file" required class="text-xs">
+                  <button class="rounded bg-slate-900 px-2 py-1 text-white">Upload</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% for res in reservations %}
+    <div class="rounded-xl border border-slate-200 bg-white">
+      <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        <h3 class="text-sm font-semibold">Reservation #{{ res.pk }}</h3>
+        {% include 'partials/badge.html' with status=res.status label=res.get_status_display %}
+      </div>
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500"><tr><th class="px-4 py-2">Item</th><th class="px-4 py-2">Warehouse</th><th class="px-4 py-2">Reserved</th><th class="px-4 py-2">Issued</th><th class="px-4 py-2"></th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for rl in res.lines.all %}
+            <tr>
+              <td class="px-4 py-2">{{ rl.item.code }}</td>
+              <td class="px-4 py-2 text-slate-500">{{ rl.warehouse.code }}</td>
+              <td class="px-4 py-2">{{ rl.qty_reserved }}</td>
+              <td class="px-4 py-2">{{ rl.qty_issued }}</td>
+              <td class="px-4 py-2 text-right">
+                {% can user 'inventory.issue' as may_issue %}
+                {% if may_issue and rl.qty_open > 0 %}
+                  <form method="post" action="{% url 'issue_material' rl.pk %}" class="flex items-center justify-end gap-1">{% csrf_token %}
+                    <input name="qty" type="number" step="0.001" value="{{ rl.qty_open }}" class="w-24 rounded border border-slate-200 px-2 py-1 text-xs">
+                    <button class="rounded bg-slate-900 px-2 py-1 text-xs text-white">Issue</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+
+    {% if runs %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-2 text-sm font-semibold">Production Runs</h3>
+      <ul class="space-y-1 text-sm">
+        {% for run in runs %}<li><a href="{% url 'production_run_detail' run.pk %}" hx-get="{% url 'production_run_detail' run.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-blue-600 hover:underline">{{ run.number }}</a> &middot; {{ run.get_status_display }} &middot; {{ run.machine|default:'' }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-6">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+      <h3 class="mb-3 text-sm font-semibold">Details</h3>
+      <dl class="space-y-2 text-slate-600">
+        <div class="flex justify-between"><dt class="text-slate-400">Priority</dt><dd>{{ jo.get_priority_display }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Plant / WH</dt><dd>{{ jo.warehouse|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Created by</dt><dd>{{ jo.created_by|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Released by</dt><dd>{{ jo.released_by|default:'-' }}</dd></div>
+      </dl>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">History</h3>
+      <ol class="space-y-2 text-xs text-slate-500">
+        {% for h in history %}<li><span class="font-medium text-slate-700">{{ h.to_status }}</span> &middot; {{ h.actor|default:'system' }} &middot; {{ h.created_at|date:'M d, H:i' }}</li>{% empty %}<li>No history.</li>{% endfor %}
+      </ol>
+    </div>
+  </div>
+</div>

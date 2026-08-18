@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Inventory Ledger{% endblock %}
+{% block content %}
+<div class="mb-6"><h1 class="text-2xl font-semibold tracking-tight">Inventory Ledger</h1>
+  <p class="mt-1 text-sm text-slate-500">Every stock movement. Postings are immutable — corrections are reversals.</p></div>
+
+<form method="get" class="mb-4 flex gap-3">
+  <select name="type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+    <option value="">All types</option>
+    {% for value, label in types %}<option value="{{ value }}" {% if value == txn_type %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50">Filter</button>
+</form>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Date</th><th class="px-4 py-3">Type</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">WH</th><th class="px-4 py-3">Coil</th><th class="px-4 py-3">Qty</th><th class="px-4 py-3">Ref</th><th class="px-4 py-3">By</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for t in page_obj %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 text-slate-500">{{ t.created_at|date:'M d, H:i' }}</td>
+          <td class="px-4 py-2">{{ t.get_txn_type_display }}</td>
+          <td class="px-4 py-2 text-slate-700">{{ t.item.code }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ t.warehouse.code }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ t.coil.coil_number|default:'-' }}</td>
+          <td class="px-4 py-2 font-medium">{{ t.quantity }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ t.job_order.number|default:t.reason }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ t.created_by|default:'-' }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="8" class="px-4 py-10 text-center text-slate-400">No transactions.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'partials/pagination.html' %}
+{% endblock %}

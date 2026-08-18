@@ -1,0 +1,7 @@
+{% load static %}
+<div class="lh" style="flex-direction:column; text-align:center; gap:4px;">
+  <img src="{% static 'img/logo.png' %}" alt="{{ company.name }}" style="height:78px; object-fit:contain;">
+  <div class="lh-lines">{{ company.address }}</div>
+  <div class="lh-lines">VAT Reg. TIN: {{ company.tin }} &nbsp;&bull;&nbsp; Contact: {{ company.contact }}</div>
+  {% if company.email %}<div class="lh-lines">{{ company.email }}</div>{% endif %}
+</div>

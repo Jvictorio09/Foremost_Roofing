@@ -1,0 +1,40 @@
+<div class="fixed inset-0 z-50" x-data="{show:false}" x-init="requestAnimationFrame(() => show = true)"
+     @keydown.escape.window="$root.remove()">
+  <div class="absolute inset-0 bg-slate-900/40 transition-opacity duration-200"
+       :class="show ? 'opacity-100' : 'opacity-0'" @click="$root.remove()"></div>
+  <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-slate-50 shadow-2xl transition-transform duration-200 ease-out"
+         :class="show ? 'translate-x-0' : 'translate-x-full'">
+    <div class="flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4">
+      <div class="min-w-0">
+        <h3 class="text-base font-semibold text-slate-900">{{ panel_title }}</h3>
+        {% if panel_subtitle %}<p class="mt-0.5 text-xs text-slate-500">{{ panel_subtitle }}</p>{% endif %}
+      </div>
+      <button type="button" @click="$root.remove()"
+              class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="flex-1 space-y-2 overflow-y-auto p-4">
+      {% for row in rows %}
+        {% if row.href %}
+        <a hx-get="{{ row.href }}" hx-target="#modal-root" hx-swap="innerHTML"
+           class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300 hover:shadow-sm">
+        {% else %}
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+        {% endif %}
+          <div class="min-w-0">
+            <div class="truncate text-sm font-medium text-slate-900">{{ row.title }}</div>
+            {% if row.subtitle %}<div class="truncate text-xs text-slate-500">{{ row.subtitle }}</div>{% endif %}
+          </div>
+          <div class="flex flex-none items-center gap-2 text-right">
+            {% if row.status %}{% include 'partials/badge.html' with status=row.status label=row.status_label %}{% endif %}
+            {% if row.meta %}<span class="text-sm font-semibold text-slate-700">{{ row.meta }}</span>{% endif %}
+          </div>
+        {% if row.href %}</a>{% else %}</div>{% endif %}
+      {% empty %}
+        <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">{{ empty }}</div>
+      {% endfor %}
+    </div>
+  </aside>
+</div>

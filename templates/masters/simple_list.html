@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <a href="{% url 'master_hub' %}" class="text-xs text-slate-400 hover:underline">Master Data</a>
+    <h1 class="text-2xl font-semibold tracking-tight">{{ title }}</h1>
+  </div>
+  {% if create_url %}<a href="{% url create_url %}" hx-get="{% url create_url %}" hx-target="#modal-root" hx-swap="innerHTML" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">{% icon 'plus' %} New</a>{% endif %}
+</div>
+
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr>
+        {% for attr_name, label in fields %}<th class="px-4 py-3">{{ label }}</th>{% endfor %}
+        {% if edit_url %}<th class="px-4 py-3"></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for row in rows %}
+        <tr class="hover:bg-slate-50">
+          {% for attr_name, label in fields %}<td class="px-4 py-3 text-slate-700">{{ row|attr:attr_name|default:'-' }}</td>{% endfor %}
+          {% if edit_url %}<td class="px-4 py-3 text-right"><a href="{% url edit_url row.pk %}" hx-get="{% url edit_url row.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-sm font-medium text-blue-600 hover:underline">Edit</a></td>{% endif %}
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="px-4 py-10 text-center text-slate-400">No records yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+<div class="mb-6 flex items-center gap-3">
+  <h1 class="text-2xl font-semibold tracking-tight">{{ coil.coil_number }}</h1>
+  {% include 'partials/badge.html' with status=coil.status label=coil.get_status_display %}
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+    <h3 class="mb-3 text-sm font-semibold">Coil Details</h3>
+    <dl class="space-y-2 text-slate-600">
+      <div class="flex justify-between"><dt class="text-slate-400">Item</dt><dd>{{ coil.item }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Supplier</dt><dd>{{ coil.supplier|default:'-' }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Supplier coil #</dt><dd>{{ coil.supplier_coil_no|default:'-' }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Color / Thk / Width</dt><dd>{{ coil.color|default:'-' }} / {{ coil.thickness_mm|default:'-' }} / {{ coil.width_mm|default:'-' }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Original LM / kg</dt><dd>{{ coil.original_length_m }} / {{ coil.original_weight_kg }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Remaining LM / kg</dt><dd class="font-medium">{{ coil.remaining_length_m }} / {{ coil.remaining_weight_kg }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Warehouse</dt><dd>{{ coil.warehouse }}</dd></div>
+      <div class="flex justify-between"><dt class="text-slate-400">Received</dt><dd>{{ coil.received_at }}</dd></div>
+      {% if coil.parent_coil %}<div class="flex justify-between"><dt class="text-slate-400">Remnant of</dt><dd>{{ coil.parent_coil.coil_number }}</dd></div>{% endif %}
+    </dl>
+  </div>
+
+  <div class="lg:col-span-2 space-y-6">
+    <div class="rounded-xl border border-slate-200 bg-white">
+      <div class="border-b border-slate-100 px-4 py-3"><h3 class="text-sm font-semibold">Consumption &amp; Traceability</h3></div>
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500"><tr><th class="px-4 py-2">Run</th><th class="px-4 py-2">Job Order</th><th class="px-4 py-2">Consumed LM</th><th class="px-4 py-2">Scrap</th><th class="px-4 py-2">Date</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for c in consumptions %}
+            <tr>
+              <td class="px-4 py-2">{{ c.production_run.number }}</td>
+              <td class="px-4 py-2"><a href="{% url 'job_order_detail' c.job_order_line.job_order.pk %}" hx-get="{% url 'job_order_detail' c.job_order_line.job_order.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-blue-600 hover:underline">{{ c.job_order_line.job_order.number }}</a></td>
+              <td class="px-4 py-2">{{ c.length_consumed }}</td>
+              <td class="px-4 py-2">{{ c.scrap_length }}</td>
+              <td class="px-4 py-2 text-slate-500">{{ c.created_at|date:'M d, H:i' }}</td>
+            </tr>
+          {% empty %}<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Not yet consumed.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white">
+      <div class="border-b border-slate-100 px-4 py-3"><h3 class="text-sm font-semibold">Ledger</h3></div>
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500"><tr><th class="px-4 py-2">Type</th><th class="px-4 py-2">Qty</th><th class="px-4 py-2">Ref</th><th class="px-4 py-2">Date</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in transactions %}
+            <tr><td class="px-4 py-2">{{ t.get_txn_type_display }}</td><td class="px-4 py-2">{{ t.quantity }}</td><td class="px-4 py-2 text-slate-500">{{ t.job_order.number|default:t.reason }}</td><td class="px-4 py-2 text-slate-500">{{ t.created_at|date:'M d, H:i' }}</td></tr>
+          {% empty %}<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">No transactions.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

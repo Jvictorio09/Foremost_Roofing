@@ -1,0 +1,88 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block doc_title %}Document{% endblock %}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+      color: #111827; font-size: 12px; line-height: 1.35;
+      background: #f1f5f9;
+    }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; gap: 10px; justify-content: center; align-items: center;
+      padding: 10px; background: #0f172a; color: #fff;
+    }
+    .toolbar button, .toolbar a {
+      font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 0; border-radius: 8px; padding: 8px 16px; text-decoration: none;
+    }
+    .toolbar .btn-print { background: #22c55e; color: #05240f; }
+    .toolbar .btn-close { background: #334155; color: #fff; }
+    .sheet {
+      width: 210mm; min-height: 297mm; margin: 16px auto; padding: 14mm;
+      background: #fff; box-shadow: 0 4px 24px rgba(15,23,42,.15);
+    }
+    .doc-frame { border: 1.5px solid #111827; }
+    .p2 { padding: 8px 10px; }
+    /* Letterhead */
+    .lh { display: flex; align-items: center; gap: 14px; padding: 8px 10px 12px; }
+    .lh-logo {
+      width: 66px; height: 66px; flex: none; border: 2px solid #111827;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-radius: 6px; text-align: center;
+    }
+    .lh-logo .mono { font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+    .lh-logo .tag { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .lh-body { flex: 1; text-align: center; }
+    .lh-name { font-size: 20px; font-weight: 800; letter-spacing: .5px; }
+    .lh-lines { font-size: 10.5px; color: #374151; }
+    .doc-band {
+      background: #111827; color: #fff; text-align: center; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase; padding: 5px; font-size: 14px;
+    }
+    .doc-title-right { font-size: 26px; font-weight: 800; text-align: right; letter-spacing: 1px; }
+    /* Generic tables */
+    table { width: 100%; border-collapse: collapse; }
+    .meta td { padding: 3px 6px; vertical-align: top; }
+    .meta .k { font-weight: 700; text-transform: uppercase; font-size: 10px; color: #111827; white-space: nowrap; }
+    .lines th {
+      background: #f3f4f6; border: 1px solid #111827; padding: 5px 6px;
+      font-size: 10px; text-transform: uppercase; text-align: left;
+    }
+    .lines td { border: 1px solid #9ca3af; padding: 5px 6px; vertical-align: top; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .center { text-align: center; }
+    .muted { color: #6b7280; }
+    .sub { font-size: 10px; color: #4b5563; }
+    .totrow td { padding: 3px 8px; }
+    .grand { font-size: 16px; font-weight: 800; }
+    .sig { margin-top: 26px; display: flex; justify-content: space-between; gap: 40px; }
+    .sig .box { flex: 1; }
+    .sig .line { border-top: 1px solid #111827; margin-top: 34px; padding-top: 3px; font-size: 10px; }
+    .terms { font-size: 9px; color: #4b5563; }
+    .terms li { margin-bottom: 1px; }
+    .note-box { border: 1px solid #111827; padding: 6px 8px; font-size: 10px; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="btn-print" onclick="window.print()">Print</button>
+    <a class="btn-close" href="#" onclick="window.close();return false;">Close</a>
+  </div>
+  <div class="sheet">
+    {% block document %}{% endblock %}
+  </div>
+  {% if auto_print %}<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 350); });</script>{% endif %}
+</body>
+</html>

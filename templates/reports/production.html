@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+/* When "Hide empty rows" is on, drop rows with no data (screen + print). */
+.hide-empty tr[data-empty] { display: none; }
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  /* Let wide matrices span the full page instead of being clipped by the scroll box. */
+  .overflow-x-auto { overflow: visible !important; }
+  section table { width: 100% !important; font-size: 8.5px !important; }
+  section table th, section table td { padding: 2px 4px !important; }
+  /* Sticky columns confuse print engines — pin them back to normal flow. */
+  section table .sticky { position: static !important; }
+  section thead { display: table-header-group; }
+  section tr { break-inside: avoid; }
+  section { break-inside: avoid; }
+  /* Keep dark headers/greys in the printout. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  canvas { max-height: 260px !important; }
+}
+</style>
+{% include 'reports/_tabs.html' %}
+<div x-data="{
+        open: false,
+        hideEmpty: true,
+        show: {
+          cards: true,
+          charts: true,
+          overall: true,
+          mats: Array({{ matrices|length }}).fill(true)
+        }
+     }"
+     :class="{ 'hide-empty': hideEmpty }">
+<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">{{ title }} &middot; {{ year }}</h1>
+    <p class="mt-1 text-sm text-slate-500">Production output in linear metres, by profile, gauge and colour.</p>
+  </div>
+  <div class="flex items-center gap-2 print:hidden">
+    <form method="get" class="flex items-center gap-2">
+      <label class="text-xs font-medium text-slate-500">Year</label>
+      <select name="year" onchange="this.form.submit()"
+              class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+      <noscript><button class="rounded-lg border border-slate-200 px-3 py-2 text-sm">Go</button></noscript>
+    </form>
+
+    <div class="relative" @click.outside="open = false">
+      <button type="button" @click="open = !open"
+              class="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+        <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 12h9.75M10.5 18h9.75M3.75 6h.008v.008H3.75V6zm0 6h.008v.008H3.75V12zm0 6h.008v.008H3.75V18z"/></svg>
+        Print options
+      </button>
+      <div x-show="open" x-cloak x-transition
+           class="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-lg">
+        <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Include in print</div>
+        <label class="flex items-center gap-2 rounded px-1 py-1 hover:bg-slate-50"><input type="checkbox" x-model="show.cards" class="rounded border-slate-300"> Summary cards</label>
+        <label class="flex items-center gap-2 rounded px-1 py-1 hover:bg-slate-50"><input type="checkbox" x-model="show.charts" class="rounded border-slate-300"> Charts</label>
+        {% for m in matrices %}
+        <label class="flex items-center gap-2 rounded px-1 py-1 hover:bg-slate-50"><input type="checkbox" x-model="show.mats[{{ forloop.counter0 }}]" class="rounded border-slate-300"> {{ m.title }}</label>
+        {% endfor %}
+        {% if overall %}<label class="flex items-center gap-2 rounded px-1 py-1 hover:bg-slate-50"><input type="checkbox" x-model="show.overall" class="rounded border-slate-300"> Overall summary</label>{% endif %}
+        <div class="my-2 border-t border-slate-100"></div>
+        <label class="flex items-center gap-2 rounded px-1 py-1 hover:bg-slate-50"><input type="checkbox" x-model="hideEmpty" class="rounded border-slate-300"> Hide empty rows</label>
+        <p class="mt-1 px-1 text-[11px] leading-snug text-slate-400">Unchecked items are removed from the report and the printout.</p>
+      </div>
+    </div>
+
+    <button type="button" onclick="window.print()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / PDF</button>
+  </div>
+</div>
+
+<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4" x-show="show.cards">
+  {% for card in cards %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="text-xs font-medium text-slate-500">{{ card.label }}</div>
+      <div class="mt-2 text-2xl font-semibold
+        {% if card.tone == 'red' %}text-rose-600{% elif card.tone == 'green' %}text-emerald-600{% elif card.tone == 'yellow' %}text-amber-600{% elif card.tone == 'blue' %}text-blue-600{% else %}text-slate-900{% endif %}">{{ card.value }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="mb-8 grid gap-4 lg:grid-cols-2" x-show="show.charts">
+  <div class="rounded-xl border border-slate-200 bg-white p-4">
+    <h3 class="mb-1 text-sm font-semibold">Monthly Output &amp; Forecast (LM)</h3>
+    <p class="mb-3 text-xs text-slate-500">Solid = actual, dashed = projected trend to year end.</p>
+    <canvas id="trendChart" height="150"></canvas>
+  </div>
+  <div class="rounded-xl border border-slate-200 bg-white p-4">
+    <h3 class="mb-1 text-sm font-semibold">Top Profiles by Month (LM)</h3>
+    <p class="mb-3 text-xs text-slate-500">Where the volume is coming from.</p>
+    <canvas id="profileChart" height="150"></canvas>
+  </div>
+</div>
+
+{% for m in matrices %}
+<section class="mb-8" x-show="show.mats[{{ forloop.counter0 }}]">
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full border-collapse text-right text-xs">
+      <thead>
+        <tr class="bg-slate-800 text-white">
+          <th class="sticky left-0 z-10 bg-slate-800 px-3 py-2 text-left font-semibold uppercase tracking-wide">{{ m.title }}</th>
+          <th class="px-3 py-2 font-semibold uppercase tracking-wide">Total</th>
+          {% if m.show_tons %}<th class="px-3 py-2 font-semibold uppercase tracking-wide">Tons</th>{% endif %}
+          {% for mo in m.months %}<th class="px-3 py-2 font-medium">{{ mo }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for row in m.rows %}
+        <tr class="hover:bg-slate-50"{% if not row.total %} data-empty="1"{% endif %}>
+          <td class="sticky left-0 z-10 bg-white px-3 py-1.5 text-left font-medium text-slate-800">
+            {% if row.swatch %}<span class="mr-2 inline-block h-3 w-3 rounded-sm border border-slate-300 align-middle" style="background:{{ row.swatch }}"></span>{% endif %}{{ row.label }}</td>
+          <td class="px-3 py-1.5 font-semibold text-slate-900 tabular-nums">{{ row.total|report_num }}</td>
+          {% if m.show_tons %}<td class="px-3 py-1.5 text-slate-500 tabular-nums">{{ row.tons|report_num }}</td>{% endif %}
+          {% for v in row.months %}<td class="px-3 py-1.5 text-slate-600 tabular-nums">{{ v|report_num }}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+        <tr class="border-t-2 border-slate-300 bg-slate-100 font-semibold text-slate-900">
+          <td class="sticky left-0 z-10 bg-slate-100 px-3 py-2 text-left uppercase">Total</td>
+          <td class="px-3 py-2 tabular-nums">{{ m.total_row.total|report_num }}</td>
+          {% if m.show_tons %}<td class="px-3 py-2 tabular-nums">{{ m.total_row.tons|report_num }}</td>{% endif %}
+          {% for v in m.total_row.months %}<td class="px-3 py-2 tabular-nums">{{ v|report_num }}</td>{% endfor %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endfor %}
+
+{% if overall %}
+<section class="mb-8" x-show="show.overall">
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full border-collapse text-right text-xs">
+      <thead>
+        <tr class="bg-slate-800 text-white">
+          <th class="sticky left-0 z-10 bg-slate-800 px-3 py-2 text-left font-semibold uppercase tracking-wide">Overall</th>
+          <th class="px-3 py-2 font-semibold uppercase tracking-wide">Total</th>
+          {% for mo in overall.months %}<th class="px-3 py-2 font-medium">{{ mo }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for row in overall.rows %}
+        <tr class="{% if row.label == 'Average Daily' %}bg-slate-50 font-semibold text-slate-900{% else %}hover:bg-slate-50{% endif %}">
+          <td class="sticky left-0 z-10 px-3 py-1.5 text-left font-medium text-slate-800 {% if row.label == 'Average Daily' %}bg-slate-50{% else %}bg-white{% endif %}">{{ row.label }}</td>
+          <td class="px-3 py-1.5 font-semibold tabular-nums">{% if row.int %}{{ row.total|report_num }}{% else %}{{ row.total|floatformat:2 }}{% endif %}</td>
+          {% for v in row.values %}<td class="px-3 py-1.5 tabular-nums text-slate-600">{% if row.int %}{{ v|report_num }}{% else %}{% if v is None %}-{% else %}{{ v|floatformat:2 }}{% endif %}{% endif %}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+</div>
+
+{{ charts_json|json_script:"charts-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  var el = document.getElementById('charts-data');
+  if (!el || typeof Chart === 'undefined') return;
+  var data = JSON.parse(el.textContent);
+  var money = function (v) { return v == null ? '' : Number(v).toLocaleString(); };
+
+  var t = document.getElementById('trendChart');
+  if (t) new Chart(t, {
+    type: 'line',
+    data: { labels: data.labels, datasets: [
+      { label: 'Actual', data: data.trend.actual, borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,.12)', fill: true, tension: .3,
+        spanGaps: false, pointRadius: 3 },
+      { label: 'Forecast', data: data.trend.forecast, borderColor: '#94a3b8',
+        borderDash: [6, 4], tension: .3, pointRadius: 2, fill: false }
+    ]},
+    options: { responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + money(c.parsed.y); } } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return money(v); } } } } }
+  });
+
+  var p = document.getElementById('profileChart');
+  if (p) new Chart(p, {
+    type: 'line',
+    data: { labels: data.labels, datasets: data.profiles.map(function (s) {
+      return { label: s.label, data: s.data, borderColor: s.color,
+        backgroundColor: s.color, tension: .3, pointRadius: 2, fill: false }; }) },
+    options: { responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + money(c.parsed.y); } } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return money(v); } } } } }
+  });
+})();
+</script>
+{% endblock %}

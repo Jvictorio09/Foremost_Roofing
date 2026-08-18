@@ -1,0 +1,128 @@
+{% load core_tags %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3">
+      <h1 class="text-2xl font-semibold tracking-tight">{{ q.display_number }}</h1>
+      {% include 'partials/badge.html' with status=q.status label=q.get_status_display %}
+      {% if q.revision_no %}<span class="text-xs text-slate-400">revision {{ q.revision_no }}</span>{% endif %}
+    </div>
+    <p class="mt-1 text-sm text-slate-500">{{ q.customer.name }} &middot; {{ q.quote_date }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'quotation_print' q.pk %}" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">{% icon 'file' %} Print</a>
+    {% can user 'quotation.edit' as may_edit %}
+    {% if may_edit and q.status == S.DRAFT or may_edit and q.status == S.PENDING_APPROVAL %}
+      <a href="{% url 'quotation_edit' q.pk %}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Edit</a>
+    {% endif %}
+    {% can user 'quotation.submit' as may_submit %}
+    {% if may_submit and q.status == S.DRAFT %}
+      <form method="post" action="{% url 'quotation_submit' q.pk %}">{% csrf_token %}<button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Submit for approval</button></form>
+    {% endif %}
+    {% can user 'quotation.approve' as may_approve %}
+    {% if may_approve and q.status == S.PENDING_APPROVAL %}
+      <form method="post" action="{% url 'quotation_approve' q.pk %}">{% csrf_token %}<button class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">Approve</button></form>
+    {% endif %}
+    {% can user 'quotation.send' as may_send %}
+    {% if may_send and q.status == S.APPROVED %}
+      <form method="post" action="{% url 'quotation_send' q.pk %}">{% csrf_token %}<button class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Mark as Sent</button></form>
+    {% endif %}
+    {% can user 'quotation.revise' as may_revise %}
+    {% if may_revise and q.status == S.SENT or may_revise and q.status == S.ACCEPTED or may_revise and q.status == S.REJECTED or may_revise and q.status == S.EXPIRED %}
+      <form method="post" action="{% url 'quotation_revise' q.pk %}">{% csrf_token %}<button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Create Revision</button></form>
+    {% endif %}
+    {% can user 'invoice.create' as may_invoice %}
+    {% if may_invoice and q.status == S.ACCEPTED %}
+      <form method="post" action="{% url 'invoice_create_from_quotation' q.pk %}">{% csrf_token %}<button class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">Create Invoice</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr><th class="px-4 py-3">Description</th><th class="px-4 py-3">Qty</th><th class="px-4 py-3">Unit</th><th class="px-4 py-3">Unit Price</th><th class="px-4 py-3 text-right">Total</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for l in lines %}
+            <tr>
+              <td class="px-4 py-3">
+                <div class="flex items-start gap-2">
+                  {% if l.drawing_image_url %}<img src="{{ l.drawing_image_url }}" alt="{{ l.drawing_caption }}" class="h-10 w-10 flex-none rounded border border-slate-200 object-contain">
+                  {% elif l.has_generated_drawing %}<div class="h-10 w-12 flex-none rounded border border-slate-200 bg-white p-0.5" title="Girth {{ l.profile_girth }} mm">{{ l.profile_svg }}</div>{% endif %}
+                  <div class="min-w-0">
+                    <div class="font-medium text-slate-800">{{ l.description }}</div>
+                    {% if l.length_rows %}<div class="mt-0.5 text-xs text-slate-400">{% for r in l.length_rows %}{{ r.pcs }} pcs @ {{ r.len }}m{% if not forloop.last %}, {% endif %}{% endfor %}{% if l.length_total %} = {{ l.length_total|floatformat:2 }} {{ l.uom }}{% endif %}</div>{% endif %}
+                    {% if l.spec_rows %}<div class="mt-0.5 text-xs text-slate-400">{% for r in l.spec_rows %}{{ r.label }}: {{ r.value }}{% if not forloop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3">{{ l.quantity }}</td>
+              <td class="px-4 py-3 text-slate-500">{{ l.uom }}</td>
+              <td class="px-4 py-3">{{ l.unit_price|floatformat:2 }}</td>
+              <td class="px-4 py-3 text-right font-medium">{{ l.line_total|floatformat:2 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">No line items.</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="bg-slate-50 text-sm">
+          <tr><td colspan="4" class="px-4 py-2 text-right text-slate-500">Subtotal</td><td class="px-4 py-2 text-right">{{ q.subtotal|floatformat:2 }}</td></tr>
+          <tr><td colspan="4" class="px-4 py-2 text-right text-slate-500">Discount</td><td class="px-4 py-2 text-right">{{ q.discount|floatformat:2 }}</td></tr>
+          <tr><td colspan="4" class="px-4 py-2 text-right text-slate-500">Tax</td><td class="px-4 py-2 text-right">{{ q.tax_amount|floatformat:2 }}</td></tr>
+          <tr class="font-semibold"><td colspan="4" class="px-4 py-2 text-right">Total</td><td class="px-4 py-2 text-right">{{ q.total|floatformat:2 }}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {% if q.status == S.SENT %}
+    {% can user 'quotation.accept' as may_accept %}
+    {% if may_accept %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Record Customer Acceptance</h3>
+      <form method="post" action="{% url 'quotation_accept' q.pk %}" class="flex flex-wrap items-end gap-3">
+        {% csrf_token %}
+        <div><label class="block text-xs text-slate-500">Accepted by</label><input name="accepted_by" class="mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"></div>
+        <div><label class="block text-xs text-slate-500">Customer PO / Ref</label><input name="reference" class="mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"></div>
+        <button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Mark Accepted</button>
+      </form>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if invoices %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Invoices</h3>
+      <ul class="space-y-1 text-sm">
+        {% for inv in invoices %}
+          <li><a href="{% url 'invoice_detail' inv.pk %}" class="text-blue-600 hover:underline">{{ inv.number }}</a> &middot; {{ inv.get_status_display }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-6">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+      <h3 class="mb-3 text-sm font-semibold">Details</h3>
+      <dl class="space-y-2 text-slate-600">
+        <div class="flex justify-between"><dt class="text-slate-400">Salesperson</dt><dd>{{ q.salesperson|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Valid until</dt><dd>{{ q.valid_until|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Payment term</dt><dd>{{ q.payment_term|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Customer ref</dt><dd>{{ q.customer_ref|default:'-' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Project / site</dt><dd>{{ q.project_site|default:'-' }}</dd></div>
+      </dl>
+      {% if q.delivery_address %}<p class="mt-3 border-t border-slate-100 pt-3 text-slate-500">{{ q.delivery_address }}</p>{% endif %}
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">History</h3>
+      <ol class="space-y-2 text-xs text-slate-500">
+        {% for h in history %}
+          <li><span class="font-medium text-slate-700">{{ h.to_status }}</span> &middot; {{ h.actor|default:'system' }} &middot; {{ h.created_at|date:'M d, H:i' }}{% if h.note %}<div class="text-slate-400">{{ h.note }}</div>{% endif %}</li>
+        {% empty %}<li>No history yet.</li>{% endfor %}
+      </ol>
+    </div>
+  </div>
+</div>

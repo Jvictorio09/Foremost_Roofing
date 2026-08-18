@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Stock Balances{% endblock %}
+{% block content %}
+<div class="mb-6"><h1 class="text-2xl font-semibold tracking-tight">Stock Balances</h1></div>
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <table class="min-w-full divide-y divide-slate-100 text-sm">
+    <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <tr><th class="px-4 py-3">Item</th><th class="px-4 py-3">Warehouse</th><th class="px-4 py-3">On Hand</th><th class="px-4 py-3">Reserved</th><th class="px-4 py-3">Available</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for b in page_obj %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 text-slate-700">{{ b.item.code }} — {{ b.item.name }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ b.warehouse.code }}</td>
+          <td class="px-4 py-2">{{ b.qty_on_hand }}</td>
+          <td class="px-4 py-2 text-amber-600">{{ b.qty_reserved }}</td>
+          <td class="px-4 py-2 font-medium text-emerald-600">{{ b.qty_available }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="px-4 py-10 text-center text-slate-400">No stock balances.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'partials/pagination.html' %}
+{% endblock %}

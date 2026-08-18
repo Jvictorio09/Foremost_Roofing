@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Master Data{% endblock %}
+{% block content %}
+<div class="mb-6"><h1 class="text-2xl font-semibold tracking-tight">Master Data</h1>
+  <p class="mt-1 text-sm text-slate-500">Configure the catalog, pricing and system rules. Nothing here is hard-coded in the app.</p></div>
+
+<div class="grid gap-6 md:grid-cols-3">
+  {% for group in groups %}
+  <div class="rounded-xl border border-slate-200 bg-white p-4">
+    <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{{ group.title }}</h3>
+    <ul class="space-y-1">
+      {% for label, url, count in group.items %}
+        <li><a href="{% url url %}" class="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-slate-50">
+          <span class="font-medium">{{ label }}</span>
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{{ count }}</span>
+        </a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

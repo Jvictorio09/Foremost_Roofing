@@ -1,0 +1,149 @@
+{% load core_tags %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <div class="flex items-center gap-3">
+      <h1 class="text-2xl font-semibold tracking-tight">{{ inv.number }}</h1>
+      {% include 'partials/badge.html' with status=inv.status label=inv.get_status_display %}
+      {% include 'partials/badge.html' with status=inv.payment_state label=inv.get_payment_state_display %}
+    </div>
+    <p class="mt-1 text-sm text-slate-500">{{ inv.customer.name }} &middot; {{ inv.invoice_date }}
+      {% if inv.quotation %}&middot; from <a href="{% url 'quotation_detail' inv.quotation.pk %}" hx-get="{% url 'quotation_detail' inv.quotation.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-blue-600 hover:underline">{{ inv.quotation.display_number }}</a>{% endif %}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'invoice_print' inv.pk %}" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">{% icon 'file' %} Print</a>
+    {% can user 'invoice.approve' as may_approve %}
+    {% if may_approve and inv.status == S.PENDING_APPROVAL %}
+      <form method="post" action="{% url 'invoice_approve' inv.pk %}">{% csrf_token %}<button class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">Approve &amp; Create Job Order</button></form>
+    {% endif %}
+    {% if may_approve and inv.status == S.DRAFT %}
+      <form method="post" action="{% url 'invoice_approve' inv.pk %}">{% csrf_token %}<button class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">Approve &amp; Create Job Order</button></form>
+    {% endif %}
+    {% can user 'invoice.release_job_order' as may_release %}
+    {% if may_release and inv.status == S.APPROVED and not job_orders %}
+      <form method="post" action="{% url 'invoice_create_job_order' inv.pk %}">{% csrf_token %}<button class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Create Job Order</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr><th class="px-4 py-3">Description</th><th class="px-4 py-3">Qty</th><th class="px-4 py-3">Unit</th><th class="px-4 py-3">Price</th><th class="px-4 py-3 text-right">Total</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for l in lines %}
+            <tr><td class="px-4 py-3 font-medium text-slate-800">{{ l.description }}</td><td class="px-4 py-3">{{ l.quantity }}</td><td class="px-4 py-3 text-slate-500">{{ l.uom }}</td><td class="px-4 py-3">{{ l.unit_price|floatformat:2 }}</td><td class="px-4 py-3 text-right">{{ l.line_total|floatformat:2 }}</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="bg-slate-50 text-sm">
+          <tr><td colspan="4" class="px-4 py-2 text-right text-slate-500">Subtotal</td><td class="px-4 py-2 text-right">{{ inv.subtotal|floatformat:2 }}</td></tr>
+          <tr><td colspan="4" class="px-4 py-2 text-right text-slate-500">Tax</td><td class="px-4 py-2 text-right">{{ inv.tax_amount|floatformat:2 }}</td></tr>
+          <tr class="font-semibold"><td colspan="4" class="px-4 py-2 text-right">Total</td><td class="px-4 py-2 text-right">{{ inv.total|floatformat:2 }}</td></tr>
+          <tr><td colspan="4" class="px-4 py-2 text-right text-slate-500">Paid</td><td class="px-4 py-2 text-right text-emerald-600">{{ inv.total_paid|floatformat:2 }}</td></tr>
+          <tr class="font-semibold"><td colspan="4" class="px-4 py-2 text-right">Balance</td><td class="px-4 py-2 text-right text-rose-600">{{ inv.balance|floatformat:2 }}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {% can user 'payment.record' as may_pay %}
+    {% if may_pay %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Record Payment</h3>
+      <form method="post" action="{% url 'invoice_record_payment' inv.pk %}" class="flex flex-wrap items-end gap-3">
+        {% csrf_token %}
+        <div><label class="block text-xs text-slate-500">Amount</label>{{ payment_form.amount }}</div>
+        <div><label class="block text-xs text-slate-500">Method</label>{{ payment_form.method }}</div>
+        <div><label class="block text-xs text-slate-500">Reference</label>{{ payment_form.reference }}</div>
+        <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Add</button>
+      </form>
+      {% if payments %}
+      <ul class="mt-3 divide-y divide-slate-100 text-sm">
+        {% for p in payments %}<li class="flex justify-between py-1.5"><span>{{ p.received_at|date:'M d' }} &middot; {{ p.get_method_display }}</span><span class="font-medium">{{ p.amount|floatformat:2 }}</span></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="space-y-6">
+    {% if job_orders %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">Job Orders</h3>
+      <ul class="space-y-1 text-sm">
+        {% for jo in job_orders %}<li><a href="{% url 'job_order_detail' jo.pk %}" hx-get="{% url 'job_order_detail' jo.pk %}" hx-target="#modal-root" hx-swap="innerHTML" class="text-blue-600 hover:underline">{{ jo.number }}</a> &middot; {{ jo.get_status_display }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if credit_checks %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+      <h3 class="mb-2 text-sm font-semibold text-slate-700">Credit Checks</h3>
+      {% for c in credit_checks %}<div class="border-t border-slate-100 py-1.5">{{ c.mode }} &middot; req {{ c.required_amount|floatformat:2 }} &middot; {% if c.satisfied %}<span class="text-emerald-600">satisfied</span>{% else %}<span class="text-rose-600">hold</span>{% endif %}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-sm font-semibold">Follow-up Notes</h3>
+        {% if notes %}<span class="text-xs text-slate-400">{{ notes|length }}</span>{% endif %}
+      </div>
+      {% can user 'payment.record' as may_note %}
+      {% can user 'invoice.edit' as may_edit_inv %}
+      {% if may_note or may_edit_inv %}
+      <form method="post" action="{% url 'invoice_add_note' inv.pk %}" class="mb-4 space-y-2">
+        {% csrf_token %}
+        {{ note_form.body }}
+        <div class="flex items-center gap-2">
+          <div class="min-w-0 flex-1">{{ note_form.kind }}</div>
+          <button class="flex-none rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Add note</button>
+        </div>
+      </form>
+      {% endif %}
+      {% if notes %}
+      <ul class="space-y-3">
+        {% for n in notes %}
+        <li x-data="{ edit: false }" class="border-t border-slate-100 pt-2 first:border-0 first:pt-0">
+          <div class="flex items-center gap-2">
+            {% include 'partials/badge.html' with status=n.kind label=n.get_kind_display %}
+            <span class="text-xs text-slate-400">{{ n.author|default:'—' }} &middot; {{ n.created_at|date:'M d, Y H:i' }}</span>
+            {% if n.can_edit %}
+            <span class="ml-auto flex items-center gap-2">
+              <button type="button" @click="edit = !edit" class="text-xs font-medium text-slate-400 hover:text-slate-700">Edit</button>
+              <form method="post" action="{% url 'invoice_note_delete' n.pk %}" onsubmit="return confirm('Delete this note?')">
+                {% csrf_token %}<button class="text-xs font-medium text-rose-500 hover:text-rose-700">Delete</button>
+              </form>
+            </span>
+            {% endif %}
+          </div>
+          <p x-show="!edit" class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ n.body }}</p>
+          {% if n.can_edit %}
+          <form x-show="edit" x-cloak method="post" action="{% url 'invoice_note_edit' n.pk %}" class="mt-2 space-y-2">
+            {% csrf_token %}
+            <select name="kind" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+              {% for value, label in note_kinds %}<option value="{{ value }}" {% if value == n.kind %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <textarea name="body" rows="3" class="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">{{ n.body }}</textarea>
+            <div class="flex justify-end gap-2">
+              <button type="button" @click="edit = false" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-50">Cancel</button>
+              <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">Save</button>
+            </div>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-xs text-slate-400">No follow-ups logged yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 class="mb-3 text-sm font-semibold">History</h3>
+      <ol class="space-y-2 text-xs text-slate-500">
+        {% for h in history %}<li><span class="font-medium text-slate-700">{{ h.to_status }}</span> &middot; {{ h.actor|default:'system' }} &middot; {{ h.created_at|date:'M d, H:i' }}</li>{% empty %}<li>No history.</li>{% endfor %}
+      </ol>
+    </div>
+  </div>
+</div>

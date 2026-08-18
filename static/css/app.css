@@ -1,0 +1,6 @@
+[x-cloak] { display: none !important; }
+
+input[type="text"], input[type="email"], input[type="password"], input[type="search"],
+input[type="number"], input[type="tel"], select, textarea {
+  font-family: inherit;
+}

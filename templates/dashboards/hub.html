@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load core_tags %}
+{% block title %}Dashboard - Foremost EG ERP{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Welcome back, {{ user.get_full_name|default:user.username }}</h1>
+    <p class="mt-1 text-sm text-slate-500">{{ role_label }} &middot; {% now 'l, M d, Y' %}</p>
+  </div>
+</div>
+
+{% if highlights %}
+<div class="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  {% for h in highlights %}
+    <button type="button"
+      hx-get="{% url 'dashboard_panel' %}?key={{ h.key }}" hx-target="#modal-root" hx-swap="innerHTML"
+      class="group flex items-center gap-3 rounded-xl border p-4 text-left transition hover:shadow-md
+      {% if h.tone == 'red' %}border-rose-200 bg-rose-50{% elif h.tone == 'yellow' %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-white{% endif %}">
+      <span class="flex h-10 w-10 flex-none items-center justify-center rounded-full
+        {% if h.tone == 'red' %}bg-rose-100 text-rose-600{% elif h.tone == 'yellow' %}bg-amber-100 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
+        {% icon 'chart' %}
+      </span>
+      <span class="min-w-0">
+        <span class="block text-xl font-bold {% if h.tone == 'red' %}text-rose-700{% elif h.tone == 'yellow' %}text-amber-700{% else %}text-slate-900{% endif %}">{{ h.value }}</span>
+        <span class="block truncate text-xs font-medium text-slate-500">{{ h.label }}</span>
+      </span>
+    </button>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% for section in sections %}
+  <section class="mb-8">
+    <h2 class="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <span class="text-slate-400">{% icon section.icon %}</span>{{ section.title }}
+    </h2>
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {% for card in section.cards %}
+        <button type="button"
+          {% if card.key %}hx-get="{% url 'dashboard_panel' %}?key={{ card.key }}" hx-target="#modal-root" hx-swap="innerHTML"{% endif %}
+          class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+          <span class="absolute inset-y-0 left-0 w-1
+            {% if card.tone == 'red' %}bg-rose-400{% elif card.tone == 'yellow' %}bg-amber-400{% elif card.tone == 'green' %}bg-emerald-400{% elif card.tone == 'blue' %}bg-blue-400{% else %}bg-slate-200{% endif %}"></span>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-500">{{ card.label }}</span>
+            <svg class="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="mt-2 text-2xl font-semibold
+            {% if card.tone == 'red' %}text-rose-600{% elif card.tone == 'green' %}text-emerald-600{% elif card.tone == 'yellow' %}text-amber-600{% elif card.tone == 'blue' %}text-blue-600{% else %}text-slate-900{% endif %}">
+            {{ card.value }}
+          </div>
+        </button>
+      {% endfor %}
+    </div>
+  </section>
+{% empty %}
+  <div class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+    Your account has no dashboard modules yet. Ask an administrator to assign a role.
+  </div>
+{% endfor %}
+
+{% if production_queue %}
+<section class="mb-8">
+  <div class="rounded-xl border border-slate-200 bg-white">
+    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <h3 class="flex items-center gap-2 text-sm font-semibold"><span class="text-slate-400">{% icon 'hammer' %}</span> Production Work Queue</h3>
+      <a href="{% url 'job_order_list' %}" class="text-xs font-medium text-blue-600">View all</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-4 py-2.5">Job Order</th>
+            <th class="px-4 py-2.5">Customer</th>
+            <th class="px-4 py-2.5">Priority</th>
+            <th class="px-4 py-2.5">Due</th>
+            <th class="px-4 py-2.5">Status</th>
+            <th class="px-4 py-2.5">Blockers</th>
+            <th class="px-4 py-2.5 w-40">Progress</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in production_queue %}
+          <tr class="cursor-pointer hover:bg-slate-50 {% if r.late %}bg-rose-50/50{% endif %}"
+              hx-get="{% url 'job_order_detail' r.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+            <td class="px-4 py-2.5 font-medium text-slate-900">{{ r.number }}</td>
+            <td class="px-4 py-2.5 text-slate-600">{{ r.customer }}</td>
+            <td class="px-4 py-2.5">
+              <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                {% if r.priority == 'urgent' %}bg-rose-100 text-rose-700{% elif r.priority == 'high' %}bg-amber-100 text-amber-700{% elif r.priority == 'low' %}bg-slate-100 text-slate-500{% else %}bg-slate-100 text-slate-600{% endif %}">{{ r.priority_label }}</span>
+            </td>
+            <td class="px-4 py-2.5">
+              {% if r.required_date %}
+                <span class="{% if r.late %}font-semibold text-rose-600{% elif r.due_soon %}font-medium text-amber-600{% else %}text-slate-500{% endif %}">{{ r.required_date|date:'M d' }}</span>
+                {% if r.late %}<span class="ml-1 text-xs font-semibold text-rose-500">LATE</span>{% elif r.due_soon %}<span class="ml-1 text-xs text-amber-500">soon</span>{% endif %}
+              {% else %}<span class="text-slate-300">&mdash;</span>{% endif %}
+            </td>
+            <td class="px-4 py-2.5">{% include 'partials/badge.html' with status=r.status label=r.status_label %}</td>
+            <td class="px-4 py-2.5">
+              {% if r.gates %}{% for g in r.gates %}<span class="mr-1 inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">{{ g }}</span>{% endfor %}{% else %}<span class="text-xs text-emerald-600">Clear</span>{% endif %}
+            </td>
+            <td class="px-4 py-2.5">
+              <div class="flex items-center gap-2">
+                <div class="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full {% if r.pct >= 100 %}bg-emerald-500{% elif r.pct > 0 %}bg-blue-500{% else %}bg-slate-300{% endif %}" style="width: {% if r.pct %}{{ r.pct }}{% else %}2{% endif %}%"></div>
+                </div>
+                <span class="text-xs tabular-nums text-slate-500">{{ r.pct }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-2">
+  {% if recent_quotes %}
+  <div class="rounded-xl border border-slate-200 bg-white">
+    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <h3 class="text-sm font-semibold">Recent Quotations</h3>
+      <a href="{% url 'quotation_list' %}" class="text-xs font-medium text-blue-600">View all</a>
+    </div>
+    <ul class="divide-y divide-slate-100">
+      {% for q in recent_quotes %}
+        <li class="flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50"
+            hx-get="{% url 'quotation_detail' q.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+          <span class="font-medium">{{ q.display_number }}</span>
+          <span class="truncate px-2 text-slate-500">{{ q.customer.name }}</span>
+          {% include 'partials/badge.html' with status=q.status label=q.get_status_display %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if recent_jos and not production_queue %}
+  <div class="rounded-xl border border-slate-200 bg-white">
+    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <h3 class="text-sm font-semibold">Recent Job Orders</h3>
+      <a href="{% url 'job_order_list' %}" class="text-xs font-medium text-blue-600">View all</a>
+    </div>
+    <ul class="divide-y divide-slate-100">
+      {% for jo in recent_jos %}
+        <li class="flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50"
+            hx-get="{% url 'job_order_detail' jo.pk %}" hx-target="#modal-root" hx-swap="innerHTML">
+          <span class="font-medium">{{ jo.number }}</span>
+          <span class="truncate px-2 text-slate-500">{{ jo.customer.name }}</span>
+          {% include 'partials/badge.html' with status=jo.status label=jo.get_status_display %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
