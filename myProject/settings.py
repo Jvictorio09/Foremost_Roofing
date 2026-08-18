@@ -13,6 +13,11 @@ SECRET_KEY = env('SECRET_KEY', default='dev-insecure-key-change-me')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
+# Origins allowed to send CSRF-protected (POST) requests. Must include scheme.
+CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS', default=[
+    'https://foremostroofing-production.up.railway.app',
+])
+
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
