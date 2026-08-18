@@ -147,6 +147,10 @@ class Command(BaseCommand):
                             default=os.environ.get('ADMIN_PASSWORD'))
         parser.add_argument('--reset-password', action='store_true',
                             help='Reset the password if the admin already exists.')
+        parser.add_argument('--with-team', action='store_true',
+                            help='Also create the standard team logins '
+                                 '(sales, billing, inventory, production, logistics, '
+                                 'manager) with password "password123".')
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -162,6 +166,8 @@ class Command(BaseCommand):
         self._attributes(cats)
         self._catalog(cats, uoms)
         self._admin(roles, options)
+        if options['with_team']:
+            self._team(roles)
         self.stdout.write(self.style.SUCCESS('\nProduction seed complete.'))
 
     # ------------------------------------------------------------------ RBAC
@@ -431,3 +437,33 @@ class Command(BaseCommand):
         else:
             self.stdout.write('  existing admin left unchanged '
                               '(use --reset-password to change it)')
+
+    # ---------------------------------------------------------------- team
+    def _team(self, roles):
+        """Create the standard non-admin team logins (idempotent). New accounts
+        get password123; existing ones keep their current password."""
+        specs = [
+            ('sales', 'Sofia Sales', ['Sales']),
+            ('billing', 'Bella Billing', ['Billing']),
+            ('inventory', 'Ivan Inventory', ['Inventory Clerk', 'Warehouse Supervisor']),
+            ('production', 'Pedro Production',
+             ['Production Supervisor', 'Production Operator']),
+            ('logistics', 'Lito Logistics', ['Logistics']),
+            ('manager', 'Manny Manager', ['Management Viewer', 'Sales Approver']),
+        ]
+        created_names = []
+        for username, full, role_names in specs:
+            user, created = User.objects.get_or_create(
+                username=username, defaults={'email': f'{username}@foremosteg.com'})
+            first, last = full.split(' ', 1)
+            user.first_name, user.last_name = first, last
+            if created or not user.has_usable_password():
+                user.set_password('password123')
+                created_names.append(username)
+            user.save()
+            user.roles.set([roles[r] for r in role_names if r in roles])
+        self.stdout.write(self.style.SUCCESS(
+            f'  team logins ensured: {", ".join(u for u, _, _ in specs)}'))
+        if created_names:
+            self.stdout.write('  password "password123" set for: '
+                              + ', '.join(created_names))
