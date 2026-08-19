@@ -70,14 +70,14 @@ PRODUCTS = [
      {D('0.4'): 854, D('0.5'): 1098, D('0.6'): 1342}),
     ('PLAIN915', 'Plainsheet 915', 'PLAIN', 915, 915, 915, 2, None, False,
      {D('0.4'): 659, D('0.5'): 830, D('0.6'): 1015}),
-    # Monte Carlo steel deck (gauges 0.8 / 1.0). NOTE: 24"/16" prices follow the
-    # published sheet's row order -- verify against the printed list if unsure.
+    # Monte Carlo steel deck (gauges 0.8 / 1.0) from FEG Published Price.
+    # DECK 01-48" 600/775; DECK 02-16" 200/258; DECK 03-24" 300/387.
     ('DECK48', 'Monte Carlo Deck 48"', 'DECK', 984, 972, 1220, 5, None, True,
      {D('0.8'): 600, D('1.0'): 775}),
     ('DECK24', 'Monte Carlo Deck 24"', 'DECK', 477, 460, 1220, 5, 'Deck 24', True,
-     {D('0.8'): 200, D('1.0'): 258}),
-    ('DECK16', 'Monte Carlo Deck 16"', 'DECK', 274, 257, 1220, 5, 'Deck 16', True,
      {D('0.8'): 300, D('1.0'): 387}),
+    ('DECK16', 'Monte Carlo Deck 16"', 'DECK', 274, 257, 1220, 5, 'Deck 16', True,
+     {D('0.8'): 200, D('1.0'): 258}),
 ]
 
 # Bended accessories: price per LM by gauge x width(inches) x style.
@@ -94,15 +94,28 @@ BENDED_PRICES = {
                18: (625, 645), 24: (705, 730), 36: (1195, 1215), 48: (1410, 1460)},
 }
 
-# Standard bended accessory items (drawing-driven). Priced by the matrix above at
-# quote time based on the chosen gauge / girth / style.
+# Standard bended accessory items from EVERGLORY STANDARD BENDED ACCESSORIES.pdf.
+# (name, default_girth_inches, style). Priced at quote time from BENDED_PRICES.
 BENDED_ACCESSORIES = [
-    'Spanish Gutter', 'Box Gutter', 'Canal Gutter', 'Valley Gutter',
-    'Ridge Roll (Plain)', 'Ridge Roll (Vented)', 'Hip Roll',
-    'End Flashing', 'Side / Wall Flashing', 'Apron Flashing', 'Counter Flashing',
-    'Step Flashing', 'L-Flashing', 'U-Flashing', 'J-Flashing',
-    'Barge / Rake Flashing', 'Fascia Cover', 'Drip Edge', 'Capping / Ridge Cap',
-    'Downspout', 'Splash Board / Gutter Guard',
+    ('Spanish Gutter #1', 24, 'Spanish'),
+    ('Spanish Gutter #2', 24, 'Spanish'),
+    ('Spanish Gutter #3', 24, 'Spanish'),
+    ('Spanish Gutter #4', 24, 'Spanish'),
+    ('Box Gutter #1', 24, 'STD'),
+    ('Box Gutter #2', 24, 'STD'),
+    ('Box Gutter #3', 24, 'STD'),
+    ('Inside Gutter', 24, 'STD'),
+    ('Capping Flashing', 16, 'STD'),
+    ('Wall Capping', 24, 'STD'),
+    ('End Flashing', 24, 'STD'),
+    ('Spanish End Flashing', 24, 'Spanish'),
+    ('Wall Flashing', 12, 'STD'),
+    ('L Flashing', 12, 'STD'),
+    ('Valley Gutter', 18, 'STD'),
+    ('Ridgeroll', 18, 'STD'),
+    ('Apron Flashing', 18, 'STD'),
+    ('Louver Blade', 8, 'STD'),
+    ('Louver Frame', 12, 'STD'),
 ]
 
 # Stainless 304, 8' (2.44 m) sheet, 48" wide -- price per sheet.
@@ -340,13 +353,14 @@ class Command(BaseCommand):
                 n_prices += 1 if made else 0
 
         # 2) Bended accessories: drawing-driven items + gauge x girth x style prices.
-        for name in BENDED_ACCESSORIES:
-            code = 'BND-' + name.upper().replace(' ', '-').replace('/', '').replace('(', '').replace(')', '')
+        for name, girth_in, style in BENDED_ACCESSORIES:
+            code = 'BND-' + name.upper().replace(' ', '-').replace('#', '').replace('/', '')
             code = code.replace('--', '-')[:48]
             item, created = Item.objects.get_or_create(
                 code=code, defaults={
-                    'name': name, 'item_type': C.ItemType.FINISHED_GOOD,
-                    'category': cats['BENDED'], 'uom': lm,
+                    'name': f'{name} ({girth_in}")',
+                    'item_type': C.ItemType.FINISHED_GOOD,
+                    'category': cats['BENDED'], 'uom': lm, 'style': style,
                     'is_manufactured': True, 'requires_drawing': True})
             n_items += 1 if created else 0
         for gauge, widths in BENDED_PRICES.items():
