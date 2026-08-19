@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.forms import inlineformset_factory
+from django.forms.models import BaseInlineFormSet
 
 from .models import (
     Coil, Color, Customer, Delivery, Invoice, InvoiceNote, Item, Machine,
@@ -122,6 +125,30 @@ class SupplierForm(StyledFormMixin, forms.ModelForm):
         widgets = {'address': forms.Textarea(attrs={'rows': 2})}
 
 
+class ItemQuickForm(StyledFormMixin, forms.ModelForm):
+    """Minimal item form for inline creation from a quotation line."""
+    placeholders = {
+        'name': 'e.g. Custom Valley Gutter',
+        'code': 'Auto-generated if left blank',
+        'category': 'Select category…',
+        'unit_price': '0.00',
+    }
+    unit_price = forms.DecimalField(
+        label='Unit price', required=False, min_value=0,
+        max_digits=12, decimal_places=2)
+
+    class Meta:
+        model = Item
+        fields = ['name', 'code', 'category']
+
+    def __init__(self, *args, category=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['code'].required = False
+        self.fields['code'].help_text = 'Leave blank to generate from the name.'
+        if category and not self.is_bound:
+            self.fields['category'].initial = category.pk
+
+
 class ItemForm(StyledFormMixin, forms.ModelForm):
     placeholders = {
         'code': 'e.g. BND-APRON-FLASHING',
@@ -223,7 +250,7 @@ class QuotationLineForm(StyledFormMixin, forms.ModelForm):
         'description': 'Optional description / spec',
         'quantity': '0.00',
         'unit_price': '0.00',
-        'discount': '0.00',
+        'discount': '0',
         'standard_drawing': 'Attach a reference drawing…',
     }
 
@@ -235,15 +262,73 @@ class QuotationLineForm(StyledFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['quantity'].widget.attrs['x-ref'] = 'qtyField'
+        # Description is required on the model but we auto-fill it from the item.
+        # Extra blank lines must not block save (qty defaults to 1.00 otherwise
+        # makes Django treat the unused extra form as "filled").
+        self.fields['description'].required = False
+        self.fields['quantity'].required = False
+        self.fields['unit_price'].required = False
+        self.fields['discount'].required = False
+        self.empty_permitted = True
+        self.fields['quantity'].widget.attrs.update({
+            'x-ref': 'qtyField',
+            '@input': 'persist(); if (window.recalcTotals) recalcTotals()',
+        })
+        self.fields['uom'].widget.attrs.update(
+            {'placeholder': 'Set by category', 'autocomplete': 'off'})
+        self.fields['discount'].widget.attrs.update(
+            {'min': '0', 'max': '100', 'step': '0.01', 'inputmode': 'decimal'})
         self.fields['standard_drawing'].widget.attrs.update(
             {'x-ref': 'drawingField', '@change': 'onDrawing()'})
         self.fields['custom_image'].widget.attrs.update(
             {'x-ref': 'imageField', '@change': 'onImage($event)'})
 
+    def _has_line_content(self):
+        if self.is_bound:
+            item = self.data.get(self.add_prefix('item'))
+            desc = (self.data.get(self.add_prefix('description')) or '').strip()
+            return bool(item) or bool(desc)
+        if self.instance and self.instance.pk:
+            return True
+        return bool(self.initial.get('item') or (self.initial.get('description') or '').strip())
+
+    def has_changed(self):
+        if not self._has_line_content():
+            return False
+        return super().has_changed()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        item = cleaned.get('item')
+        desc = (cleaned.get('description') or '').strip()
+        if item and not desc:
+            cleaned['description'] = (item.name or item.code)[:255]
+        if cleaned.get('quantity') is None:
+            cleaned['quantity'] = Decimal('1.00')
+        return cleaned
+
+
+class BaseQuotationLineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        live = 0
+        for form in self.forms:
+            cd = getattr(form, 'cleaned_data', None) or {}
+            if not cd or cd.get('DELETE'):
+                continue
+            if cd.get('item') or (cd.get('description') or '').strip():
+                live += 1
+        if live == 0:
+            raise forms.ValidationError('Add at least one line item before saving.')
+
 
 QuotationLineFormSet = inlineformset_factory(
     Quotation, QuotationLine, form=QuotationLineForm,
+    formset=BaseQuotationLineFormSet,
     extra=1, can_delete=True,
 )
 

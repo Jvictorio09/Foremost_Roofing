@@ -1,51 +1,117 @@
 {% comment %}One quotation line-item card. Param: lf (a formset form).{% endcomment %}
-<div x-data="lineEditor()" data-line class="rounded-xl border border-slate-200 bg-white shadow-sm">
+<div x-data="lineEditor()" data-line class="rounded-xl border {% if lf.errors %}border-rose-300{% else %}border-slate-200{% endif %} bg-white shadow-sm">
   {% for hidden in lf.hidden_fields %}{{ hidden }}{% endfor %}
 
-  <div class="flex items-start gap-3 p-4">
-    <div class="mt-6 hidden h-6 w-6 flex-none items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500 sm:flex" data-line-no>#</div>
+  {% if lf.errors %}
+    <div class="rounded-t-xl border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">
+      {% for field, errors in lf.errors.items %}
+        <div>{{ errors|striptags }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
-    <div class="min-w-0 flex-1 space-y-3">
-      <div class="grid gap-3 sm:grid-cols-12">
-        <div class="sm:col-span-5">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Item</label>
-          <div class="mt-1">{{ lf.item }}</div>
+  <div class="flex items-start gap-4 p-5">
+    <div class="mt-8 hidden h-7 w-7 flex-none items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500 sm:flex" data-line-no>#</div>
+
+    <div class="min-w-0 flex-1 space-y-5">
+      <div class="grid gap-x-4 gap-y-4 lg:grid-cols-12">
+        <div class="lg:col-span-4">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Category</label>
+          <select data-line-category class="js-search w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  data-placeholder="Select category…">
+            <option value="">Select category…</option>
+            {% for c in item_categories %}
+              <option value="{{ c.id }}" data-code="{{ c.code }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="sm:col-span-7">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Description</label>
-          <div class="mt-1">{{ lf.description }}</div>
+        <div class="lg:col-span-8">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Item</label>
+          <div class="flex items-center gap-2">
+            <div class="min-w-0 flex-1">{{ lf.item }}</div>
+            <button type="button"
+                    data-item-quick-url="{% url 'item_quick_create' %}"
+                    onclick="openItemQuickCreate(this)"
+                    class="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              New
+            </button>
+          </div>
+        </div>
+        <div class="lg:col-span-12">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Remarks</label>
+          {{ lf.description }}
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-12">
-        <div class="sm:col-span-2">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Qty</label>
-          <div class="mt-1">{{ lf.quantity }}</div>
+      <div data-qty-wrap class="w-[6.5rem] shrink-0">
+        <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Qty</label>
+        {{ lf.quantity }}
+      </div>
+
+      <div data-size-rows class="hidden w-full space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Sizes (same product)</span>
+          <button type="button" @click="addLen()"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50">
+            + Add another size
+          </button>
         </div>
-        <div class="sm:col-span-2">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Unit</label>
-          <div class="mt-1">{{ lf.uom }}</div>
-        </div>
-        <div class="sm:col-span-3">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Unit Price</label>
-          <div class="mt-1">{{ lf.unit_price }}</div>
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Discount</label>
-          <div class="mt-1">{{ lf.discount }}</div>
-        </div>
-        <div class="sm:col-span-3">
-          <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-400">Line total</label>
-          <div class="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-right text-sm font-semibold text-slate-800" data-line-total>0.00</div>
+        <template x-for="(sz, i) in lengths" :key="'sz'+i">
+          <div class="flex flex-wrap items-end gap-3">
+            <div class="w-[6.5rem]">
+              <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Qty (pcs)</label>
+              <input type="number" step="any" min="0" x-model="sz.pcs"
+                     @input="persist(); if (window.recalcTotals) recalcTotals()"
+                     class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            </div>
+            <div class="w-[7.5rem]">
+              <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Length (m)</label>
+              <input type="number" step="any" min="0" x-model="sz.len"
+                     @input="persist(); if (window.recalcTotals) recalcTotals()"
+                     placeholder="e.g. 8"
+                     class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            </div>
+            <div class="w-[7.5rem]">
+              <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">TLM</label>
+              <div class="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800"
+                   x-text="((parseFloat(sz.pcs)||0)*(parseFloat(sz.len)||0)).toFixed(2)"></div>
+            </div>
+            <button type="button" x-show="lengths.length > 1" @click="rmLen(i)"
+                    class="mb-0.5 rounded-lg px-2 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50">Remove size</button>
+          </div>
+        </template>
+        <div class="flex items-center gap-2 pt-1 text-sm text-slate-600">
+          <span>Total TLM</span>
+          <span class="font-semibold text-slate-900" data-line-tlm x-text="total().toFixed(2)">0.00</span>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 pt-1">
+      <div class="flex flex-wrap gap-x-4 gap-y-3">
+        <div class="w-[5.5rem] shrink-0">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Unit</label>
+          {{ lf.uom }}
+        </div>
+        <div class="w-[8.5rem] shrink-0">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Unit Price</label>
+          {{ lf.unit_price }}
+        </div>
+        <div class="w-[5.5rem] shrink-0">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Disc %</label>
+          {{ lf.discount }}
+        </div>
+        <div class="min-w-[8.5rem] flex-1">
+          <label class="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">Line total</label>
+          <div class="rounded-lg bg-slate-50 px-3 py-2 text-right text-sm font-semibold text-slate-800" data-line-total>0.00</div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
         <button type="button" @click="show = !show"
                 class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg>
           Sizes &amp; drawing
-          <span x-show="specs.length || lengths.length || preview()" class="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-semibold text-white" x-cloak>&#10003;</span>
+          <span x-show="specs.length || preview() || hasProfile()" class="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-semibold text-white" x-cloak>&#10003;</span>
           <svg class="h-3.5 w-3.5 transition-transform" :class="show ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
         </button>
 
@@ -79,28 +145,6 @@
           </div>
         </template>
         <p x-show="!specs.length" class="text-xs text-slate-400">No size specs yet.</p>
-      </div>
-
-      <div>
-        <div class="mb-1.5 flex items-center justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Length schedule (pcs &times; length)</span>
-          <button type="button" @click="addLen()" class="rounded-md px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-50">+ Add row</button>
-        </div>
-        <template x-for="(row, i) in lengths" :key="'l'+i">
-          <div class="mb-1.5 flex items-center gap-2">
-            <input type="number" step="any" x-model="row.pcs" @input="persist()" placeholder="Pcs"
-                   class="w-20 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-            <span class="text-slate-400">&times;</span>
-            <input type="number" step="any" x-model="row.len" @input="persist()" placeholder="Length (m)"
-                   class="w-28 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-            <span class="text-xs text-slate-500">= <span class="font-medium" x-text="((parseFloat(row.pcs)||0)*(parseFloat(row.len)||0)).toFixed(2)"></span></span>
-            <button type="button" @click="rmLen(i)" class="ml-auto px-1.5 text-slate-400 hover:text-rose-600" title="Remove">&times;</button>
-          </div>
-        </template>
-        <div x-show="lengths.length" class="mt-2 flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs">
-          <span class="font-semibold text-slate-700">Total length: <span x-text="total().toFixed(2)"></span></span>
-          <button type="button" @click="useTotalAsQty()" class="rounded-md px-2 py-0.5 font-medium text-blue-600 hover:bg-blue-50">Use as quantity</button>
-        </div>
       </div>
     </div>
 

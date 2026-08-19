@@ -85,6 +85,7 @@ urlpatterns = [
     path('masters/suppliers/<int:pk>/edit/', views.supplier_edit, name='supplier_edit'),
     path('masters/items/', views.item_list, name='item_list'),
     path('masters/items/new/', views.item_create, name='item_create'),
+    path('masters/items/quick-new/', views.item_quick_create, name='item_quick_create'),
     path('masters/items/<int:pk>/edit/', views.item_edit, name='item_edit'),
     path('masters/profiles/', views.profile_list, name='profile_list'),
     path('masters/profiles/new/', views.profile_create, name='profile_create'),

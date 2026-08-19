@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-5xl">
+<div class="mx-auto max-w-6xl">
   <div class="mb-6">
     <a href="{% url 'quotation_list' %}" class="text-xs text-slate-400 hover:underline">Quotations</a>
     <h1 class="text-2xl font-semibold tracking-tight">{{ title }}</h1>
@@ -13,9 +13,21 @@
     {% csrf_token %}
     {{ standard_drawings|json_script:"drawing-map" }}
     {{ item_prices|json_script:"item-prices" }}
+    {{ item_catalog|json_script:"item-catalog" }}
 
-    {% if form.non_field_errors %}
-      <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ form.non_field_errors }}</div>
+    {% if form.non_field_errors or form.errors or formset.non_form_errors %}
+      <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <p class="font-medium">This quotation was not saved. Please fix the errors below.</p>
+        {% if form.non_field_errors %}<div class="mt-1">{{ form.non_field_errors }}</div>{% endif %}
+        {% if formset.non_form_errors %}<div class="mt-1">{{ formset.non_form_errors }}</div>{% endif %}
+        {% if form.errors %}
+          <ul class="mt-1 list-disc pl-5">
+            {% for field, errors in form.errors.items %}
+              {% if field != '__all__' %}<li>{{ field }}: {{ errors|striptags }}</li>{% endif %}
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
     {% endif %}
 
     <!-- Customer & schedule -->
@@ -51,7 +63,7 @@
             <button type="button" hx-get="{% url 'salesperson_quick_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
                     class="inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-              New salesperson
+              New Agent
             </button>
           </div>
           {% if form.salesperson.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.salesperson.errors|striptags }}</p>{% endif %}
@@ -60,43 +72,7 @@
       </div>
     </section>
 
-    <!-- Pricing & terms -->
-    <section class="rounded-2xl border border-slate-200 bg-white p-6">
-      <div class="mb-4 flex items-center gap-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 20.25z"/></svg>
-        </span>
-        <div>
-          <h2 class="text-sm font-semibold text-slate-800">Pricing &amp; terms</h2>
-          <p class="text-xs text-slate-400">Payment terms, tax and any header-level discount.</p>
-        </div>
-      </div>
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {% include 'partials/field.html' with field=form.payment_term %}
-        {% include 'partials/field.html' with field=form.tax_code %}
-        {% include 'partials/field.html' with field=form.price_list %}
-        {% include 'partials/field.html' with field=form.discount hint='Applied to the whole quotation.' %}
-      </div>
-    </section>
 
-    <!-- Delivery & reference -->
-    <section class="rounded-2xl border border-slate-200 bg-white p-6">
-      <div class="mb-4 flex items-center gap-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
-        </span>
-        <div>
-          <h2 class="text-sm font-semibold text-slate-800">Delivery &amp; reference</h2>
-          <p class="text-xs text-slate-400">Where it ships and any customer references.</p>
-        </div>
-      </div>
-      <div class="grid gap-4 sm:grid-cols-2">
-        {% include 'partials/field.html' with field=form.project_site %}
-        {% include 'partials/field.html' with field=form.customer_ref %}
-        {% include 'partials/field.html' with field=form.delivery_address wrap='sm:col-span-2' %}
-        {% include 'partials/field.html' with field=form.notes wrap='sm:col-span-2' %}
-      </div>
-    </section>
 
     <!-- Line items -->
     <section class="rounded-2xl border border-slate-200 bg-white p-6">
@@ -127,6 +103,44 @@
       <template id="empty-line-template">{% include 'sales/_quotation_line.html' with lf=formset.empty_form %}</template>
     </section>
 
+        <!-- Pricing & terms -->
+        <section class="rounded-2xl border border-slate-200 bg-white p-6">
+          <div class="mb-4 flex items-center gap-2">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 20.25z"/></svg>
+            </span>
+            <div>
+              <h2 class="text-sm font-semibold text-slate-800">Pricing &amp; terms</h2>
+              <p class="text-xs text-slate-400">Payment terms, tax and any header-level discount.</p>
+            </div>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {% include 'partials/field.html' with field=form.payment_term %}
+            {% include 'partials/field.html' with field=form.tax_code %}
+            {% include 'partials/field.html' with field=form.price_list %}
+            {% include 'partials/field.html' with field=form.discount hint='Applied to the whole quotation.' %}
+          </div>
+        </section>
+
+    <!-- Delivery & reference -->
+    <section class="rounded-2xl border border-slate-200 bg-white p-6">
+      <div class="mb-4 flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Delivery &amp; reference</h2>
+          <p class="text-xs text-slate-400">Where it ships and any customer references.</p>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include 'partials/field.html' with field=form.project_site %}
+        {% include 'partials/field.html' with field=form.customer_ref %}
+        {% include 'partials/field.html' with field=form.delivery_address wrap='sm:col-span-2' %}
+        {% include 'partials/field.html' with field=form.notes wrap='sm:col-span-2' %}
+      </div>
+    </section>
+
     <!-- Totals -->
     <section class="rounded-2xl border border-slate-200 bg-white p-6">
       <div class="ml-auto w-full max-w-sm space-y-2 text-sm">
@@ -139,7 +153,7 @@
 
     <!-- Sticky action bar -->
     <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur">
-      <div class="mx-auto flex max-w-5xl items-center gap-3 px-8 py-3">
+      <div class="mx-auto flex max-w-6xl items-center gap-3 px-8 py-3">
         <div class="text-sm text-slate-500">Estimated total <span id="bar-total" class="ml-1 font-semibold text-slate-900">0.00</span></div>
         <div class="ml-auto flex gap-3">
           <a href="{% url 'quotation_list' %}" class="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium hover:bg-slate-50">Cancel</a>
@@ -161,7 +175,12 @@
         let d = {};
         try { d = JSON.parse(this.$refs.specsField.value || '{}'); } catch (e) {}
         this.specs = d.specs || [];
-        this.lengths = d.lengths || [];
+        this.lengths = d.lengths && d.lengths.length ? d.lengths : [];
+        if (!this.lengths.length) {
+          var pcs = (this.$refs.qtyField && this.$refs.qtyField.value) || '';
+          var len = d.length || '';
+          if (pcs || len) this.lengths = [{ pcs: pcs, len: len }];
+        }
         var p = d.profile;
         this.profile = (p && Array.isArray(p.segments))
           ? { start: parseFloat(p.start) || 0, unit: (p.unit === 'in' ? 'in' : 'mm'),
@@ -169,7 +188,7 @@
                 return { len: s.len, ang: (s.ang == null ? 90 : s.ang), dir: (parseFloat(s.dir) == -1 ? -1 : 1) };
               }) }
           : { start: 0, unit: 'mm', segments: [] };
-        if (this.specs.length || this.lengths.length || this.hasProfile()) this.show = true;
+        if (this.specs.length || this.hasProfile()) this.show = true;
         this.onDrawing();
       },
       // --- bend profile -------------------------------------------------
@@ -210,6 +229,13 @@
         try { d = JSON.parse(this.$refs.specsField.value || '{}'); } catch (e) {}
         d.specs = this.specs.filter(r => r.label || r.value);
         d.lengths = this.lengths.filter(r => r.pcs || r.len);
+        if (d.lengths.length) {
+          d.length = parseFloat(d.lengths[0].len) || undefined;
+          if (!d.length) delete d.length;
+          if (this.$refs.qtyField) this.$refs.qtyField.value = this.total().toFixed(2);
+        } else {
+          delete d.length;
+        }
         if (this.hasProfile()) {
           d.profile = {
             start: parseFloat(this.profile.start) || 0,
@@ -225,10 +251,16 @@
       },
       addSpec() { this.specs.push({ label: '', value: '' }); },
       rmSpec(i) { this.specs.splice(i, 1); this.persist(); },
-      addLen() { this.lengths.push({ pcs: '', len: '' }); },
-      rmLen(i) { this.lengths.splice(i, 1); this.persist(); },
-      useTotalAsQty() {
-        if (this.$refs.qtyField) { this.$refs.qtyField.value = this.total().toFixed(2); recalcTotals(); }
+      addLen() {
+        this.lengths.push({ pcs: '', len: '' });
+        this.persist();
+        if (window.recalcTotals) recalcTotals();
+      },
+      rmLen(i) {
+        if (this.lengths.length <= 1) this.lengths = [{ pcs: '', len: '' }];
+        else this.lengths.splice(i, 1);
+        this.persist();
+        if (window.recalcTotals) recalcTotals();
       },
     };
   }
@@ -312,13 +344,39 @@
         return !(del && del.checked);
       });
   }
+  function isLm(uom) {
+    uom = (uom || '').trim().toUpperCase();
+    return uom === 'LM' || uom === 'TLM';
+  }
+  function billedQty(row) {
+    if (!isLm(fieldVal(row, '-uom'))) return parseFloat(fieldVal(row, '-quantity')) || 0;
+    var data = row._x_dataStack && row._x_dataStack[0];
+    if (data && typeof data.total === 'function') return data.total();
+    return parseFloat(fieldVal(row, '-quantity')) || 0;
+  }
+  function toggleLengthFields(row) {
+    var show = isLm(fieldVal(row, '-uom'));
+    var qtyWrap = row.querySelector('[data-qty-wrap]');
+    var sizeRows = row.querySelector('[data-size-rows]');
+    if (qtyWrap) qtyWrap.classList.toggle('hidden', show);
+    if (sizeRows) sizeRows.classList.toggle('hidden', !show);
+    var data = row._x_dataStack && row._x_dataStack[0];
+    if (show && data && (!data.lengths || !data.lengths.length)) {
+      data.lengths = [{ pcs: fieldVal(row, '-quantity') || '', len: '' }];
+    }
+  }
   function recalcTotals() {
     var subtotal = 0;
     activeRows().forEach(function (row) {
-      var q = parseFloat(fieldVal(row, '-quantity')) || 0;
+      toggleLengthFields(row);
+      var q = billedQty(row);
       var p = parseFloat(fieldVal(row, '-unit_price')) || 0;
-      var d = parseFloat(fieldVal(row, '-discount')) || 0;
-      var lt = q * p - d;
+      var pct = parseFloat(fieldVal(row, '-discount')) || 0;
+      if (pct < 0) pct = 0;
+      if (pct > 100) pct = 100;
+      var lt = q * p * (1 - pct / 100);
+      var tlm = row.querySelector('[data-line-tlm]');
+      if (tlm) tlm.textContent = money(q);
       var cell = row.querySelector('[data-line-total]');
       if (cell) cell.textContent = money(lt);
       subtotal += lt;
@@ -342,6 +400,14 @@
       if (badge) badge.textContent = n;
     });
   }
+  function openItemQuickCreate(btn) {
+    var row = btn.closest('[data-line]');
+    window.__itemPickTarget = row ? row.querySelector('[name$="-item"]') : null;
+    var cat = (row && row.querySelector('[data-line-category]')) ? row.querySelector('[data-line-category]').value : '';
+    var url = btn.getAttribute('data-item-quick-url') || '';
+    if (cat) url += (url.indexOf('?') >= 0 ? '&' : '?') + 'category=' + encodeURIComponent(cat);
+    if (window.htmx) htmx.ajax('GET', url, {target: '#modal-root', swap: 'innerHTML'});
+  }
   function addLine() {
     var tpl = document.getElementById('empty-line-template').innerHTML;
     var totalForms = document.getElementById('id_lines-TOTAL_FORMS');
@@ -353,9 +419,11 @@
     totalForms.value = idx + 1;
     if (window.Alpine && Alpine.initTree) Alpine.initTree(row);
     if (window.initSearchSelects) initSearchSelects(row);
+    if (window.htmx) htmx.process(row);
+    filterItemOptions(row);
     renumber(); recalcTotals();
-    var firstItem = row.querySelector('[name$="-item"]');
-    if (firstItem && firstItem.tomselect) firstItem.tomselect.focus();
+    var catSel = row.querySelector('[data-line-category]');
+    if (catSel && catSel.tomselect) catSel.tomselect.focus();
   }
   function removeLine(btn) {
     var row = btn.closest('[data-line]');
@@ -374,20 +442,92 @@
     renumber(); recalcTotals();
   }
 
-  // Catalog unit prices, keyed by item id. When a line's item is chosen we drop
-  // its published price straight into the Unit Price box so the line total shows
-  // immediately and re-computes as the quantity changes.
+  // Category -> unit. Panel = roof; cladding shares the spandrel category.
+  var CATEGORY_UOM = {
+    BENDED: 'PC',
+    ROOF: 'LM',
+    DECK: 'LM',
+    PLAIN: 'PC',
+    COIL: 'TONS',
+    SPANDREL: 'LM',
+    STAINLESS: 'PC',
+    INSULATION: 'ROLL',
+    HARDWARE: 'PC',
+  };
   function itemPrices() {
     try { return JSON.parse(document.getElementById('item-prices').textContent || '{}'); }
     catch (e) { return {}; }
   }
-  function applyItemPrice(itemSelect) {
+  function itemCatalog() {
+    try { return JSON.parse(document.getElementById('item-catalog').textContent || '{}'); }
+    catch (e) { return {}; }
+  }
+  function categoryCode(row) {
+    var sel = row.querySelector('[data-line-category]');
+    if (!sel) return '';
+    var opt = sel.options[sel.selectedIndex];
+    return (opt && opt.getAttribute('data-code')) || '';
+  }
+  function setUnitFromCategory(row) {
+    var uomEl = row.querySelector('[name$="-uom"]');
+    var code = categoryCode(row);
+    if (uomEl && code && CATEGORY_UOM[code]) uomEl.value = CATEGORY_UOM[code];
+    toggleLengthFields(row);
+    recalcTotals();
+  }
+  function filterItemOptions(row) {
+    var itemSel = row.querySelector('[name$="-item"]');
+    var catSel = row.querySelector('[data-line-category]');
+    if (!itemSel) return;
+    var catId = catSel ? catSel.value : '';
+    var catalog = itemCatalog();
+    var selected = itemSel.tomselect ? itemSel.tomselect.getValue() : itemSel.value;
+    var options = [];
+    Object.keys(catalog).forEach(function (id) {
+      if (!catId || String(catalog[id].category) === String(catId)) {
+        options.push({ value: id, text: catalog[id].label });
+      }
+    });
+    if (itemSel.tomselect) {
+      var ts = itemSel.tomselect;
+      ts.clear(true);
+      ts.clearOptions();
+      ts.addOptions(options);
+      if (selected && options.some(function (o) { return String(o.value) === String(selected); })) {
+        ts.addItem(String(selected), true);
+      }
+    } else {
+      var keep = itemSel.value;
+      itemSel.querySelectorAll('option').forEach(function (opt) {
+        if (!opt.value) return;
+        var meta = catalog[opt.value];
+        opt.hidden = !!(catId && (!meta || String(meta.category) !== String(catId)));
+      });
+      if (keep && catalog[keep] && catId && String(catalog[keep].category) !== String(catId)) {
+        itemSel.value = '';
+      }
+    }
+  }
+  function applyCategory(row) {
+    setUnitFromCategory(row);
+    filterItemOptions(row);
+  }
+  function applyItem(itemSelect) {
     var row = itemSelect.closest('[data-line]');
     if (!row) return;
+    var meta = itemCatalog()[itemSelect.value];
+    var catSel = row.querySelector('[data-line-category]');
+    if (meta && catSel && meta.category && String(catSel.value) !== String(meta.category)) {
+      if (catSel.tomselect) catSel.tomselect.setValue(String(meta.category), true);
+      else catSel.value = meta.category;
+      setUnitFromCategory(row);
+      filterItemOptions(row);
+    } else {
+      setUnitFromCategory(row);
+    }
     var priceEl = row.querySelector('[name$="-unit_price"]');
-    if (!priceEl) return;
     var price = itemPrices()[itemSelect.value];
-    if (itemSelect.value && price != null) {
+    if (priceEl && itemSelect.value && price != null) {
       priceEl.value = Number(price).toFixed(2);
       recalcTotals();
     }
@@ -395,6 +535,11 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     renumber(); recalcTotals();
+    document.querySelectorAll('#lines-wrap [data-line]').forEach(function (row) {
+      var itemSel = row.querySelector('[name$="-item"]');
+      if (itemSel && itemSel.value) applyItem(itemSel);
+      else filterItemOptions(row);
+    });
     var form = document.getElementById('quote-form');
     if (!form) return;
     form.addEventListener('input', function (e) {
@@ -404,8 +549,56 @@
       }
     });
     form.addEventListener('change', function (e) {
-      if (/-item$/.test(e.target.name || '')) applyItemPrice(e.target);
+      var t = e.target;
+      if (t.matches('[data-line-category]')) applyCategory(t.closest('[data-line]'));
+      else if (/-item$/.test(t.name || '')) applyItem(t);
+      else if (/-uom$/.test(t.name || '')) {
+        toggleLengthFields(t.closest('[data-line]'));
+        recalcTotals();
+      }
     });
+  });
+
+  document.body.addEventListener('itemCreated', function (e) {
+    var d = e.detail || {};
+    var id = String(d.id);
+    try {
+      var el = document.getElementById('item-catalog');
+      var m = JSON.parse(el.textContent || '{}');
+      m[id] = { category: d.category, code: d.code || '', label: d.label };
+      el.textContent = JSON.stringify(m);
+    } catch (err) {}
+    if (d.price != null) {
+      try {
+        var pe = document.getElementById('item-prices');
+        var pm = JSON.parse(pe.textContent || '{}');
+        pm[id] = d.price;
+        pe.textContent = JSON.stringify(pm);
+      } catch (err) {}
+    }
+    document.querySelectorAll('select[name$="-item"]').forEach(function (sel) {
+      if (sel.tomselect) sel.tomselect.addOption({ value: id, text: d.label });
+      else sel.add(new Option(d.label, id));
+    });
+    var target = window.__itemPickTarget;
+    if (target) {
+      var row = target.closest('[data-line]');
+      if (row && d.category) {
+        var catSel = row.querySelector('[data-line-category]');
+        if (catSel) {
+          if (catSel.tomselect) catSel.tomselect.setValue(String(d.category), true);
+          else catSel.value = d.category;
+          setUnitFromCategory(row);
+          filterItemOptions(row);
+        }
+      }
+      if (target.tomselect) target.tomselect.addItem(id);
+      else { target.value = id; }
+      applyItem(target);
+      window.__itemPickTarget = null;
+    }
+    var root = document.getElementById('modal-root');
+    if (root) root.innerHTML = '';
   });
 
   document.body.addEventListener('drawingCreated', function (e) {

@@ -8,13 +8,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from django.utils.text import slugify
 
+from .. import constants as C
 from ..forms import (
-    ColorForm, CustomerForm, CustomerQuickForm, ItemForm, MachineForm, ProfileForm,
-    SalespersonQuickForm, StandardDrawingForm, SupplierForm,
+    ColorForm, CustomerForm, CustomerQuickForm, ItemForm, ItemQuickForm, MachineForm,
+    ProfileForm, SalespersonQuickForm, StandardDrawingForm, SupplierForm,
 )
 from ..models import (
     AppSetting, AttributeDefinition, CategoryAttribute, Color, Customer, Item,
-    ItemCategory, Machine, Profile, Role, StandardDrawing, Supplier, User, Warehouse,
+    ItemCategory, Machine, PriceList, PriceMatrixRow, Profile, Role,
+    StandardDrawing, Supplier, UnitOfMeasure, User, Warehouse,
 )
 from ..rbac import permission_required
 from .common import is_hx, paginate
@@ -186,6 +188,75 @@ def item_create(request):
 def item_edit(request, pk):
     return _crud_form(request, ItemForm, get_object_or_404(Item, pk=pk),
                       'Edit Item', 'item_list', 'Item updated.')
+
+
+_CATEGORY_UOM = {
+    'BENDED': 'PC', 'ROOF': 'LM', 'DECK': 'LM', 'PLAIN': 'PC', 'COIL': 'TONS',
+    'SPANDREL': 'LM', 'STAINLESS': 'PC', 'INSULATION': 'ROLL', 'HARDWARE': 'PC',
+}
+
+
+def _uom_for_category(category):
+    code = _CATEGORY_UOM.get(getattr(category, 'code', ''), 'PC')
+    uom, _ = UnitOfMeasure.objects.get_or_create(
+        code=code, defaults={'name': code, 'is_length': code in ('LM', 'TLM')})
+    return uom
+
+
+def _unique_item_code(name):
+    base = (slugify(name) or 'item').upper()[:36] or 'ITEM'
+    code = base
+    n = 1
+    while Item.objects.filter(code=code).exists():
+        n += 1
+        code = f'{base}-{n}'[:48]
+    return code
+
+
+@permission_required('product.manage', 'quotation.create')
+def item_quick_create(request):
+    """Inline item creation from a quotation line. Fires ``itemCreated`` so the
+    opener can add the item to its picker without leaving the page."""
+    category = None
+    cat_id = request.GET.get('category') or request.POST.get('category')
+    try:
+        category = ItemCategory.objects.filter(pk=int(cat_id)).first() if cat_id else None
+    except (TypeError, ValueError):
+        category = None
+    if request.method == 'POST':
+        form = ItemQuickForm(request.POST)
+        if form.is_valid():
+            item = form.save(commit=False)
+            if not (item.code or '').strip():
+                item.code = _unique_item_code(item.name)
+            if not item.uom_id:
+                item.uom = _uom_for_category(item.category)
+            cat = item.category
+            item.item_type = cat.default_item_type if cat else C.ItemType.FINISHED_GOOD
+            item.is_manufactured = bool(cat.is_manufactured) if cat else False
+            item.requires_drawing = bool(cat.requires_drawing) if cat else False
+            price = form.cleaned_data.get('unit_price')
+            if price is not None:
+                item.standard_cost = price
+            item.save()
+            if price is not None:
+                pl = PriceList.objects.filter(is_default=True).first() or PriceList.objects.first()
+                ver = pl.versions.first() if pl else None
+                if ver:
+                    PriceMatrixRow.objects.get_or_create(
+                        version=ver, item=item, keys={'item': item.code},
+                        defaults={'unit_price': price, 'uom': item.uom})
+            resp = HttpResponse(status=204)
+            resp['HX-Trigger'] = json.dumps({'itemCreated': {
+                'id': item.pk, 'label': str(item), 'name': item.name,
+                'code': item.code, 'category': item.category_id,
+                'price': float(price) if price is not None else None,
+            }})
+            return resp
+    else:
+        form = ItemQuickForm(category=category)
+    return render(request, 'masters/_form_modal.html', {
+        'form': form, 'title': 'New Item', 'form_action': request.path})
 
 
 # --- Profiles --------------------------------------------------------------

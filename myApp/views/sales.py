@@ -11,7 +11,7 @@ from .. import services
 from ..forms import (
     InvoiceNoteForm, PaymentForm, QuotationForm, QuotationLineFormSet)
 from ..models import (
-    CustomerAcceptance, Invoice, InvoiceNote, JobOrder, Quotation)
+    CustomerAcceptance, Invoice, InvoiceNote, Item, ItemCategory, JobOrder, Quotation)
 
 
 def _note_edit_window():
@@ -91,12 +91,12 @@ def quotation_create(request):
                                 note='Quotation created')
             messages.success(request, f'Quotation {quotation.number} created.')
             return redirect('quotation_detail', pk=quotation.pk)
+        messages.error(request, 'This quotation was not saved. Please fix the highlighted errors.')
     else:
         form = QuotationForm()
         formset = QuotationLineFormSet()
-    return render(request, 'sales/quotation_form.html', {
-        'form': form, 'formset': formset, 'title': 'New Quotation',
-        'standard_drawings': _drawing_map(), 'item_prices': _item_price_map()})
+    return render(request, 'sales/quotation_form.html', _quotation_form_context(
+        form=form, formset=formset, title='New Quotation'))
 
 
 @permission_required('quotation.edit')
@@ -116,12 +116,23 @@ def quotation_edit(request, pk):
             services.log_event(quotation, 'edit', actor=request.user)
             messages.success(request, 'Quotation updated.')
             return redirect('quotation_detail', pk=pk)
+        messages.error(request, 'Changes were not saved. Please fix the highlighted errors.')
     else:
         form = QuotationForm(instance=quotation)
         formset = QuotationLineFormSet(instance=quotation)
-    return render(request, 'sales/quotation_form.html', {
-        'form': form, 'formset': formset, 'title': f'Edit {quotation.display_number}',
-        'standard_drawings': _drawing_map(), 'item_prices': _item_price_map()})
+    return render(request, 'sales/quotation_form.html', _quotation_form_context(
+        form=form, formset=formset, title=f'Edit {quotation.display_number}'))
+
+
+def _quotation_form_context(**extra):
+    extra.update({
+        'standard_drawings': _drawing_map(),
+        'item_prices': _item_price_map(),
+        'item_categories': list(ItemCategory.objects.order_by('name').values(
+            'id', 'code', 'name')),
+        'item_catalog': _item_catalog(),
+    })
+    return extra
 
 
 def _drawing_map():
@@ -129,6 +140,19 @@ def _drawing_map():
     from ..models import StandardDrawing
     return {d.pk: d.image.url for d in StandardDrawing.objects.filter(
         is_active=True) if d.image}
+
+
+def _item_catalog():
+    """Item id -> category / label, used to filter the line-item picker."""
+    catalog = {}
+    qs = Item.objects.filter(is_active=True).select_related('category')
+    for item in qs:
+        catalog[str(item.pk)] = {
+            'category': item.category_id,
+            'code': item.category.code if item.category_id else '',
+            'label': str(item),
+        }
+    return catalog
 
 
 def _item_price_map():

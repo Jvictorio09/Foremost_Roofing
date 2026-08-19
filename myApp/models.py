@@ -18,7 +18,7 @@ Design rules honoured here:
   * Inventory changes only through the InventoryTransaction ledger; balances are
     derived counters, postings are never hard-deleted (use reversals).
 """
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -30,6 +30,34 @@ from .profile_render import (
     build_profile_svg, girth_label, has_profile, profile_girth)
 
 ZERO = Decimal('0.00')
+
+
+def billed_quantity(line):
+    """Pieces × length = TLM when the line is priced per linear metre."""
+    qty = line.quantity or ZERO
+    uom = (line.uom or '').strip().upper()
+    if uom not in ('LM', 'TLM'):
+        return qty
+    length_total = getattr(line, 'length_total', None)
+    if length_total:
+        return length_total
+    raw = (getattr(line, 'specs_json', None) or {}).get('length')
+    if raw not in (None, ''):
+        try:
+            return qty * Decimal(str(raw))
+        except (InvalidOperation, TypeError, ValueError):
+            pass
+    return qty
+
+
+def apply_line_discount(gross, percent):
+    """``percent`` is a 0–100 rate off the line gross (e.g. 5 = 5% off)."""
+    pct = percent or ZERO
+    if pct < ZERO:
+        pct = ZERO
+    if pct > Decimal('100'):
+        pct = Decimal('100')
+    return (gross * (Decimal('100') - pct) / Decimal('100')).quantize(Decimal('0.01'))
 
 
 class TimeStamped(models.Model):
@@ -601,8 +629,12 @@ class QuotationLine(models.Model):
         ordering = ['sort', 'id']
 
     @property
+    def billed_qty(self):
+        return billed_quantity(self)
+
+    @property
     def line_total(self):
-        return self.quantity * self.unit_price - self.discount
+        return apply_line_discount(self.billed_qty * self.unit_price, self.discount)
 
     # --- Size / spec helpers (stored inside specs_json) --------------------
     @property
@@ -772,8 +804,12 @@ class InvoiceLine(models.Model):
         ordering = ['sort', 'id']
 
     @property
+    def billed_qty(self):
+        return billed_quantity(self)
+
+    @property
     def line_total(self):
-        return self.quantity * self.unit_price - self.discount
+        return apply_line_discount(self.billed_qty * self.unit_price, self.discount)
 
     @property
     def spec_rows(self):
